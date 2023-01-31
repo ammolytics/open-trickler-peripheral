@@ -3,8 +3,10 @@ openapi: 3.1.0
 info:
   version: 1.0.0
   title: Open Trickler REST API
+  description: A REST API for the Open Trickler that powers a web-based interface and mobile apps (in the future).
   license:
-    name: MIT
+    name: "MIT"
+    url: https://opensource.org/licenses/MIT
 
 servers:
   - url: http://opentrickler.local/trickler/v1
@@ -32,6 +34,20 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Setting'
+            examples:
+              startTrickling:
+                summary: Turn the trickler on with a set weight.
+                value:
+                  auto_mode: true
+                  target_weight: 10.00
+                  target_unit: g
+              stopTrickling:
+                summary: Turn the trickler off.
+                value:
+                  auto_mode: false
+                  target_weight: 10.00
+                  target_unit: g
+
       responses:
         '204':
           description: The settings were updated
