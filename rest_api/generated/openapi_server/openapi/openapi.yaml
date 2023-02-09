@@ -1,0 +1,72 @@
+openapi: 3.0.3
+info:
+  description: A REST API for the Open Trickler that powers a web-based interface
+    and mobile apps (in the future).
+  title: Open Trickler REST API
+  version: 1.0.0
+servers:
+- url: http://opentrickler.local/trickler/v1
+- url: http://localhost/trickler/v1
+paths:
+  /settings:
+    get:
+      operationId: get_settings
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Setting'
+          description: OK
+      summary: Read Open Trickler settings
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+    put:
+      operationId: update_settings
+      requestBody:
+        content:
+          application/json:
+            examples:
+              startTrickling:
+                summary: Turn the trickler on with a set weight.
+                value:
+                  auto_mode: true
+                  target_weight: 10.0
+                  target_unit: g
+              stopTrickling:
+                summary: Turn the trickler off.
+                value:
+                  auto_mode: false
+                  target_weight: 10.0
+                  target_unit: g
+            schema:
+              $ref: '#/components/schemas/Setting'
+        description: New setting values
+        required: true
+      responses:
+        "204":
+          description: The settings were updated
+      summary: Update Open Trickler settings
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+components:
+  schemas:
+    Setting:
+      example:
+        auto_mode: true
+        target_unit: g
+        target_weight: target_weight
+      properties:
+        auto_mode:
+          title: auto_mode
+          type: boolean
+        target_weight:
+          pattern: "^\\d{1,3}.\\d{1,3}$"
+          title: target_weight
+          type: string
+        target_unit:
+          enum:
+          - g
+          - gn
+          title: target_unit
+          type: string
+      title: Setting
+      type: object
