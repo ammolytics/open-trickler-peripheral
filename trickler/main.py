@@ -9,6 +9,7 @@ https://github.com/ammolytics/projects/tree/develop/trickler
 
 import datetime
 import decimal
+import enum
 import logging
 import time
 
@@ -108,8 +109,12 @@ def main(config, args, pidtune_logger):
     logging.debug('trickler_motor: %r', trickler_motor)
     #servo_motor = gpiozero.AngularServo(int(config['motors']['servo_pin']))
 
+    scale_status_map_version = int(config['scale']['status_map_version'])
+    scale_status_map = enum.Enum(enum.IntEnum, 'status_map', config['scale_status_values'].keys(), start=scale_status_map_version)
+
     scale = scales.SCALES[config['scale']['model']](
         memcache=memcache,
+        status_map=scale_status_map,
         port=config['scale']['port'],
         baudrate=int(config['scale']['baudrate']),
         timeout=float(config['scale']['timeout']))
