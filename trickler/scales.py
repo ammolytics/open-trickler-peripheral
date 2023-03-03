@@ -15,8 +15,6 @@ import time
 
 import serial # pylint: disable=import-error;
 
-import constants
-
 
 class Units(enum.Enum):
     GRAINS = 0
@@ -43,9 +41,10 @@ def noop(*args, **kwargs):
 class ANDFx120:
     """Class for controlling an A&D FX120 scale."""
 
-    def __init__(self, memcache, status_map, port='/dev/ttyUSB0', baudrate=19200, timeout=0.1, **kwargs):
+    def __init__(self, memcache, constants, status_map, port='/dev/ttyUSB0', baudrate=19200, timeout=0.1, **kwargs):
         """Controller."""
         self._memcache = memcache
+        self._constants = constants
         self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=timeout, **kwargs)
         # Set default values, which should be overwritten quickly.
         self.raw = b''
@@ -121,11 +120,11 @@ class ANDFx120:
 
         self.resolution = resolution[self.unit]
         # Update memcache values.
-        self._memcache.set(constants.SCALE_STATUS, self.status)
-        self._memcache.set(constants.SCALE_WEIGHT, self.weight)
-        self._memcache.set(constants.SCALE_UNIT, self.unit)
-        self._memcache.set(constants.SCALE_RESOLUTION, self.resolution)
-        self._memcache.set(constants.SCALE_IS_STABLE, self.is_stable)
+        self._memcache.set(self._constants.SCALE_STATUS, self.status)
+        self._memcache.set(self._constants.SCALE_WEIGHT, self.weight)
+        self._memcache.set(self._constants.SCALE_UNIT, self.unit)
+        self._memcache.set(self._constants.SCALE_RESOLUTION, self.resolution)
+        self._memcache.set(self._constants.SCALE_IS_STABLE, self.is_stable)
 
     def _stable(self, line):
         """Scale is stable."""
@@ -140,17 +139,17 @@ class ANDFx120:
     def _overload(self, line):
         """Scale is overloaded."""
         self.status = self.status_map.OVERLOAD
-        self._memcache.set(constants.SCALE_STATUS, self.status)
+        self._memcache.set(self._constants.SCALE_STATUS, self.status)
 
     def _error(self, line):
         """Scale has an error."""
         self.status = self.status_map.ERROR
-        self._memcache.set(constants.SCALE_STATUS, self.status)
+        self._memcache.set(self._constants.SCALE_STATUS, self.status)
 
     def _acknowledge(self, line):
         """Scale has acknowledged a command."""
         self.status = self.status_map.ACKNOWLEDGE
-        self._memcache.set(constants.SCALE_STATUS, self.status)
+        self._memcache.set(self._constants.SCALE_STATUS, self.status)
 
     def _model_number(self, line):
         """Gets & sets the scale's model number."""

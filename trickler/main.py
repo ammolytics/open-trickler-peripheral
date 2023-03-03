@@ -13,7 +13,6 @@ import enum
 import logging
 import time
 
-import constants
 import helpers
 import PID
 import motors
@@ -36,7 +35,7 @@ import scales
 # - validate inputs (target weight)
 
 
-def trickler_loop(memcache, pid, trickler_motor, scale, target_weight, target_unit, pidtune_logger):
+def trickler_loop(memcache, constants, pid, trickler_motor, scale, target_weight, target_unit, pidtune_logger):
     pidtune_logger.info('timestamp, input (motor %), output (weight %)')
     logging.info('Starting trickling process...')
 
@@ -94,6 +93,7 @@ def trickler_loop(memcache, pid, trickler_motor, scale, target_weight, target_un
 
 def main(config, args, pidtune_logger):
     memcache = helpers.get_mc_client()
+    constants = enum.Enum('memcache_vars', config['memcache_vars'])
 
     pid = PID.PID(
         float(config['PID']['Kp']),
@@ -103,6 +103,7 @@ def main(config, args, pidtune_logger):
 
     trickler_motor = motors.TricklerMotor(
         memcache=memcache,
+        constants=constants,
         motor_pin=int(config['motors']['trickler_pin']),
         min_pwm=int(config['motors']['trickler_min_pwm']),
         max_pwm=int(config['motors']['trickler_max_pwm']))
@@ -114,6 +115,7 @@ def main(config, args, pidtune_logger):
 
     scale = scales.SCALES[config['scale']['model']](
         memcache=memcache,
+        constants=constants,
         status_map=scale_status_map,
         port=config['scale']['port'],
         baudrate=int(config['scale']['baudrate']),
@@ -155,7 +157,7 @@ def main(config, args, pidtune_logger):
             # Wait a second to start trickling.
             time.sleep(1)
             # Run trickler loop.
-            trickler_loop(memcache, pid, trickler_motor, scale, target_weight, target_unit, pidtune_logger)
+            trickler_loop(memcache, constants, pid, trickler_motor, scale, target_weight, target_unit, pidtune_logger)
 
 
 if __name__ == '__main__':

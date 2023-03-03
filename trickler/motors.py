@@ -12,15 +12,14 @@ import logging
 
 import gpiozero # pylint: disable=import-error;
 
-import constants
-
 
 class TricklerMotor:
     """Controls a small vibration DC motor with the PWM controller on the Pi."""
 
-    def __init__(self, memcache, motor_pin=18, min_pwm=15, max_pwm=100):
+    def __init__(self, memcache, constants, motor_pin=18, min_pwm=15, max_pwm=100):
         """Constructor."""
         self._memcache = memcache
+        self._constants = constants
         self.pwm = gpiozero.PWMOutputDevice(motor_pin)
         self.min_pwm = min_pwm
         self.max_pwm = max_pwm
@@ -50,7 +49,7 @@ class TricklerMotor:
         # TODO(eric): must be 0 - 1.
         logging.debug('Setting speed from %r to %r', self.speed, speed)
         self.pwm.value = speed
-        self._memcache.set(constants.TRICKLER_MOTOR_SPEED, self.speed)
+        self._memcache.set(self._constants.TRICKLER_MOTOR_SPEED, self.speed)
 
     def off(self):
         """Turns motor off."""
@@ -64,6 +63,7 @@ class TricklerMotor:
 
 if __name__ == '__main__':
     import argparse
+    import enum
     import time
 
     import helpers
@@ -76,11 +76,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     memcache_client = helpers.get_mc_client()
+    constants = enum.Enum('memcache_vars', {'TRICKLER_MOTOR_SPEED': 'trickler_motor_speed'})
 
     helpers.setup_logging()
 
     motor = TricklerMotor(
         memcache=memcache_client,
+        constants=constants,
         motor_pin=args.trickler_motor_pin,
         min_pwm=args.min_pwm,
         max_pwm=args.max_pwm)

@@ -8,6 +8,7 @@ https://github.com/ammolytics/projects/tree/develop/trickler
 """
 
 import atexit
+import enum
 import functools
 import logging
 import os
@@ -15,7 +16,6 @@ import time
 
 import pybleno # pylint: disable=import-error;
 
-import constants
 import helpers
 import scales
 
@@ -78,7 +78,7 @@ class BasicCharacteristic(pybleno.Characteristic):
 
 class AutoMode(BasicCharacteristic):
 
-    def __init__(self, memcache):
+    def __init__(self, memcache, constants):
         super(AutoMode, self).__init__({
             'uuid': '10000005-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'write'],
@@ -112,7 +112,7 @@ class AutoMode(BasicCharacteristic):
 
 class ScaleStatus(BasicCharacteristic):
 
-    def __init__(self, memcache):
+    def __init__(self, memcache, constants):
         super(ScaleStatus, self).__init__({
             'uuid': '10000002-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'notify'],
@@ -132,7 +132,7 @@ class ScaleStatus(BasicCharacteristic):
 
 class TargetWeight(BasicCharacteristic):
 
-    def __init__(self, memcache):
+    def __init__(self, memcache, constants):
         super(TargetWeight, self).__init__({
             'uuid': '10000004-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'write'],
@@ -165,7 +165,7 @@ class TargetWeight(BasicCharacteristic):
 
 class ScaleUnit(BasicCharacteristic):
 
-    def __init__(self, memcache):
+    def __init__(self, memcache, constants):
         super(ScaleUnit, self).__init__({
             'uuid': '10000003-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'write', 'notify'],
@@ -177,6 +177,7 @@ class ScaleUnit(BasicCharacteristic):
         })
         self._memcache = memcache
         self._mc_key = constants.SCALE_UNIT
+        self._write_mc_key = constants.TARGET_UNIT
         self._updateValueCallback = None
         self._send_fn = helpers.enum_to_bytes
         self._recv_fn = functools.partial(helpers.bytes_to_enum, scales.Units)
@@ -189,9 +190,9 @@ class ScaleUnit(BasicCharacteristic):
             callback(pybleno.Characteristic.RESULT_INVALID_ATTRIBUTE_LENGTH)
         else:
             value = self._recv_fn(data)
-            logging.info('Changing %s to %r', constants.TARGET_UNIT, value)
+            logging.info('Changing %s to %r', self._write_mc_key, value)
             # NOTE: Cannot set the scale unit directly, but can change the target unit.
-            self._memcache.set(constants.TARGET_UNIT, value)
+            self._memcache.set(self._write_mc_key, value)
             # Notify subscribers.
             if self._updateValueCallback:
                 self._updateValueCallback(data)
@@ -200,7 +201,7 @@ class ScaleUnit(BasicCharacteristic):
 
 class ScaleWeight(BasicCharacteristic):
 
-    def __init__(self, memcache):
+    def __init__(self, memcache, constants):
         super(ScaleWeight, self).__init__({
             'uuid': '10000001-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'notify'],
@@ -220,15 +221,15 @@ class ScaleWeight(BasicCharacteristic):
 
 class TricklerService(pybleno.BlenoPrimaryService):
 
-    def __init__(self, memcache):
+    def __init__(self, memcache, constants):
         super(TricklerService, self).__init__({
             'uuid': TRICKLER_UUID,
             'characteristics': [
-                AutoMode(memcache),
-                ScaleStatus(memcache),
-                ScaleUnit(memcache),
-                ScaleWeight(memcache),
-                TargetWeight(memcache),
+                AutoMode(memcache, constants),
+                ScaleStatus(memcache, constants),
+                ScaleUnit(memcache, constants),
+                ScaleWeight(memcache, constants),
+                TargetWeight(memcache, constants),
             ],
         })
 
@@ -275,7 +276,7 @@ def graceful_exit(bleno):
     logging.info('Stopping OpenTrickler Bluetooth...')
 
 
-def all_variables_set(memcache):
+def all_variables_set(memcache, constants):
     variables = (
         memcache.get(constants.AUTO_MODE, None) != None,
         memcache.get(constants.SCALE_STATUS, None) != None,
@@ -290,9 +291,10 @@ def all_variables_set(memcache):
 
 def run(config, args):
     memcache = helpers.get_mc_client()
+    constants = enum.Enum('memcache_vars', config['memcache_vars'])
 
     logging.info('Setting up Bluetooth...')
-    trickler_service = TricklerService(memcache)
+    trickler_service = TricklerService(memcache, constants)
     device_name = config['bluetooth']['name']
     os.environ['BLENO_DEVICE_NAME'] = device_name
     logging.info('Bluetooth device will be advertised as %s', device_name)
@@ -309,7 +311,7 @@ def run(config, args):
 
     logging.info('Checking if ready to advertise...')
     while 1:
-        if all_variables_set(memcache):
+        if all_variables_set(memcache, constants):
             logging.info('Ready to advertise!')
             break
         time.sleep(0.1)

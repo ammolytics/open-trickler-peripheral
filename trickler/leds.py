@@ -14,7 +14,6 @@ import time
 
 import gpiozero # pylint: disable=import-error;
 
-import constants
 import helpers
 
 
@@ -61,7 +60,7 @@ LED_MODES = {
 }
 
 
-def all_variables_set(memcache):
+def all_variables_set(memcache, constants):
     variables = (
         memcache.get(constants.AUTO_MODE, None) != None,
         memcache.get(constants.TRICKLER_MOTOR_SPEED, None) != None,
@@ -72,6 +71,7 @@ def all_variables_set(memcache):
 
 def run(config, args):
     memcache = helpers.get_mc_client()
+    constants = enum.Enum('memcache_vars', config['memcache_vars'])
 
     status_led_pin = int(config['leds']['status_led_pin'])
     status_led = gpiozero.PWMLED(status_led_pin, active_high=config['leds'].getboolean('active_high', True))
@@ -79,7 +79,7 @@ def run(config, args):
 
     logging.info('Checking if ready to begin...')
     while 1:
-        if all_variables_set(memcache):
+        if all_variables_set(memcache, constants):
             logging.info('Ready!')
             break
         time.sleep(0.1)
