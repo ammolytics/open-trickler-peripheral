@@ -25,13 +25,13 @@ class Units(enum.Enum):
 
 UNIT_MAP = {
     'GN': Units.GRAINS,
-    'G': Units.GRAMS,
+    'g': Units.GRAMS,
 }
 
 
 UNIT_REVERSE_MAP = {
     Units.GRAINS: 'GN',
-    Units.GRAMS: 'G',
+    Units.GRAMS: 'g',
 }
 
 
@@ -70,7 +70,7 @@ class GGjj100b:
         # Set default values, which should be overwritten quickly.
         self.raw = b''
         self.unit = Units.GRAINS
-        self.resolution = decimal.Decimal(0.02)
+        self.resolution = decimal.Decimal(0.01)
         self.weight = decimal.Decimal('0.00')
 
         self.StatusMap = self.ScaleStatusV1
@@ -126,10 +126,10 @@ class GGjj100b:
         else:
             status = line[9:12].strip()
             fault = line[2:9].strip()
-            handler = handlers.get(status, noop)
-            handler2 = handlers.get(fault, noop)
-            handler(line)
-            handler2(line)
+            check_for_unit = handlers.get(status, noop)
+            check_for_error = handlers.get(fault, noop)
+            check_for_unit(line)
+            check_for_error(line)
 
     def _stable_unstable(self, line):
         """Update the scale when status is stable or unstable."""
@@ -140,7 +140,7 @@ class GGjj100b:
         self.unit = UNIT_MAP[unit]
 
         resolution = {}
-        resolution[Units.GRAINS] = decimal.Decimal(0.02)
+        resolution[Units.GRAINS] = decimal.Decimal(0.01)
         resolution[Units.GRAMS] = decimal.Decimal(0.001)
 
         self.resolution = resolution[self.unit]
@@ -314,7 +314,7 @@ class ANDFx120:
 
 SCALES = {
     'and-fx120': ANDFx120,
-    'jj100b': GGjj100b,
+    'gg-jj100b': GGjj100b,
 }
 
 
@@ -324,9 +324,9 @@ if __name__ == '__main__':
     import helpers
 
     parser = argparse.ArgumentParser(description='Test scale.')
-    parser.add_argument('--scale', choices=SCALES.keys(), default='jj100b')
+    parser.add_argument('--scale', choices=SCALES.keys(), default='and-fx120')
     parser.add_argument('--scale_port', default='/dev/ttyUSB0')
-    parser.add_argument('--scale_baudrate', type=int, default='9600')
+    parser.add_argument('--scale_baudrate', type=int, default='19200')
     parser.add_argument('--scale_timeout', type=float, default='0.1')
     parser.add_argument('--scale_version', type=int, default='1')
     args = parser.parse_args()

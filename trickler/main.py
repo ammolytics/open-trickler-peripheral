@@ -162,7 +162,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--auto_mode', action='store_true')
     parser.add_argument('--pid_tune', action='store_true')
-    parser.add_argument('--target_weight', type=decimal.Decimal, default=10)   # default=0
+    parser.add_argument('--target_weight', type=decimal.Decimal, default=0)
     parser.add_argument('--target_unit', choices=scales.UNIT_MAP.keys(), default='GN')
     args = parser.parse_args()
 
