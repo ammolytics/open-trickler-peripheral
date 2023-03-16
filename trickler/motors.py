@@ -16,9 +16,18 @@ import gpiozero # pylint: disable=import-error;
 class TricklerMotor:
     """Controls a small vibration DC motor with the PWM controller on the Pi."""
 
-    def __init__(self, memcache, constants, motor_pin=18, min_pwm=15, max_pwm=100):
+    def __init__(self, memcache, config=None, constants=None, motor_pin=None, min_pwm=None, max_pwm=None):
         """Constructor."""
         self._memcache = memcache
+
+        if config:
+            # Pull default values from config, giving preference to provided arguments.
+            constants = enum.Enum('memcache_vars', config['memcache_vars'])
+            motor_pin = motor_pin or config['motors']['trickler_pin']
+            min_pwm = min_pwm or config['motors']['trickler_min_pwm']
+            max_pwm = max_pwm or config['motors']['trickler_max_pwm']
+
+
         self._constants = constants
         self.pwm = gpiozero.PWMOutputDevice(motor_pin)
         self.min_pwm = min_pwm
@@ -63,26 +72,36 @@ class TricklerMotor:
 
 if __name__ == '__main__':
     import argparse
+    import configparser
     import enum
     import time
 
     import helpers
 
     parser = argparse.ArgumentParser(description='Test motors.')
-    parser.add_argument('--trickler_motor_pin', type=int, default=18)
+    parser.add_argument('config_file')
+    parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--trickler_motor_pin', type=int)
     #parser.add_argument('--servo_motor_pin', type=int)
-    parser.add_argument('--max_pwm', type=float, default=100)
-    parser.add_argument('--min_pwm', type=float, default=15)
+    parser.add_argument('--max_pwm', type=float)
+    parser.add_argument('--min_pwm', type=float)
     args = parser.parse_args()
 
+    config = configparser.ConfigParser()
+    config.read_file(open(args.config_file))
+
+    log_level = logging.INFO
+    if args.verbose or config['general'].getboolean('verbose'):
+        log_level = logging.DEBUG
+
+    helpers.setup_logging(log_level)
+
     memcache_client = helpers.get_mc_client()
-    constants = enum.Enum('memcache_vars', {'TRICKLER_MOTOR_SPEED': 'trickler_motor_speed'})
 
-    helpers.setup_logging()
-
+    # TODO(eric): pass in constants if config file not provided.
     motor = TricklerMotor(
         memcache=memcache_client,
-        constants=constants,
+        config=config,
         motor_pin=args.trickler_motor_pin,
         min_pwm=args.min_pwm,
         max_pwm=args.max_pwm)
