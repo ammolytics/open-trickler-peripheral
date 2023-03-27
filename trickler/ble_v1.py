@@ -23,26 +23,32 @@ import scales
 TRICKLER_UUID = '10000000-be5f-4b43-a49f-76f2d65c6e28'
 
 
-class BasicCharacteristic(pybleno.Characteristic):
+class BasicCharacteristic(pybleno.Characteristic): # pylint: disable=too-many-instance-attributes;
+    """Base class for bluetooth characteristics."""
 
     def __init__(self, *args, **kwargs):
-        super(BasicCharacteristic, self).__init__(*args, **kwargs)
+        """Instantiate and store a few extra variables."""
+        super().__init__(*args, **kwargs)
+        self._maxValueSize = None # pylint: disable=invalid-name;
         self._memcache = None
         self._mc_key = None
-        self._updateValueCallback = None
+        self._updateValueCallback = None # pylint: disable=invalid-name;
         self._send_fn = helpers.noop
         self._recv_fn = helpers.noop
         self.__value = None
 
     def onSubscribe(self, maxValueSize, updateValueCallback):
-        self._maxValueSize = maxValueSize
+        """Register the callback functions when a bluetooth client subscribes to a characteristic for updates."""
+        self._maxValueSize = maxValueSize # pylint: disable=invalid-name;
         self._updateValueCallback = updateValueCallback
 
     def onUnsubscribe(self):
+        """Unhook the callbacks when the client unsubscribes from the characterstic."""
         self._maxValueSize = None
         self._updateValueCallback = None
 
     def onReadRequest(self, offset, callback):
+        """Bluetooth client reads this characteristic."""
         if offset:
             callback(pybleno.Characteristic.RESULT_ATTR_NOT_LONG, None)
         else:
@@ -51,10 +57,12 @@ class BasicCharacteristic(pybleno.Characteristic):
 
     @property
     def mc_value(self):
+        """Make the internal value accessible as a readable property."""
         return self.__value
 
     @mc_value.setter
     def mc_value(self, value):
+        """Setter function for the internal characteristic value."""
         if value == self.__value:
             return
         logging.info('Updating %s: from %r to %r', self._mc_key, self.__value, value)
@@ -63,6 +71,7 @@ class BasicCharacteristic(pybleno.Characteristic):
             self._updateValueCallback(self._send_fn(self.__value))
 
     def mc_get(self):
+        """Retry mechanism for memcache. May no longer be needed."""
         for _ in range(2):
             try:
                 value = self._memcache.get(self._mc_key)
@@ -72,14 +81,17 @@ class BasicCharacteristic(pybleno.Characteristic):
                 return value
 
     def mc_update(self):
+        """Updates the internal value to match what's in memcache."""
         value = self.mc_get()
         self.mc_value = value
 
 
 class AutoMode(BasicCharacteristic):
+    """Bluetooth characteristic for if Auto Mode is on or off."""
 
     def __init__(self, memcache, constants):
-        super(AutoMode, self).__init__({
+        """Constructor."""
+        super().__init__({
             'uuid': '10000005-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'write'],
             'descriptors': [
@@ -97,6 +109,7 @@ class AutoMode(BasicCharacteristic):
         self.__value = self.mc_get()
 
     def onWriteRequest(self, data, offset, withoutResponse, callback):
+        """Handle Bluetooth client change request for this characteristic."""
         if offset:
             callback(pybleno.Characteristic.RESULT_ATTR_NOT_LONG)
         elif len(data) != 1:
@@ -111,9 +124,11 @@ class AutoMode(BasicCharacteristic):
 
 
 class ScaleStatus(BasicCharacteristic):
+    """Bluetooth characteristic for the Scale Status, as mapped by the scale class."""
 
     def __init__(self, memcache, constants):
-        super(ScaleStatus, self).__init__({
+        """Constructor."""
+        super().__init__({
             'uuid': '10000002-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'notify'],
             'descriptors': [
@@ -131,9 +146,11 @@ class ScaleStatus(BasicCharacteristic):
 
 
 class TargetWeight(BasicCharacteristic):
+    """Bluetooth characteristic for the target weight value. """
 
     def __init__(self, memcache, constants):
-        super(TargetWeight, self).__init__({
+        """Constructor."""
+        super().__init__({
             'uuid': '10000004-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'write'],
             'descriptors': [
@@ -150,6 +167,7 @@ class TargetWeight(BasicCharacteristic):
         self.__value = self.mc_get()
 
     def onWriteRequest(self, data, offset, withoutResponse, callback):
+        """Handle Bluetooth client request to change this characteristic value."""
         if offset:
             callback(pybleno.Characteristic.RESULT_ATTR_NOT_LONG)
         elif len(data) == 0:
@@ -164,9 +182,11 @@ class TargetWeight(BasicCharacteristic):
 
 
 class ScaleUnit(BasicCharacteristic):
+    """Bluetooth characteristic for the unit setting on the scale."""
 
     def __init__(self, memcache, constants):
-        super(ScaleUnit, self).__init__({
+        """Constructor."""
+        super().__init__({
             'uuid': '10000003-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'write', 'notify'],
             'descriptors': [
@@ -200,9 +220,11 @@ class ScaleUnit(BasicCharacteristic):
 
 
 class ScaleWeight(BasicCharacteristic):
+    """Bluetooth characteristic for the weight value on the scale."""
 
     def __init__(self, memcache, constants):
-        super(ScaleWeight, self).__init__({
+        """Constructor."""
+        super().__init__({
             'uuid': '10000001-be5f-4b43-a49f-76f2d65c6e28',
             'properties': ['read', 'notify'],
             'descriptors': [
@@ -220,9 +242,11 @@ class ScaleWeight(BasicCharacteristic):
 
 
 class TricklerService(pybleno.BlenoPrimaryService):
+    """Defines all of the characteristics avaliable for this device over Bluetooth."""
 
     def __init__(self, memcache, constants):
-        super(TricklerService, self).__init__({
+        """Constructor."""
+        super().__init__({
             'uuid': TRICKLER_UUID,
             'characteristics': [
                 AutoMode(memcache, constants),
@@ -234,16 +258,19 @@ class TricklerService(pybleno.BlenoPrimaryService):
         })
 
     def all_mc_update(self):
+        """Update all values in memcache."""
         for characteristic in self['characteristics']:
             characteristic.mc_update()
 
 
 def error_handler(error):
+    """Simple error handler function."""
     if error:
         logging.error(error)
 
 
 def on_state_change(device_name, bleno, trickler_service, state):
+    """Shared state change handler function."""
     if state == 'poweredOn':
         bleno.startAdvertising(device_name, [TRICKLER_UUID], error_handler)
     else:
@@ -251,6 +278,7 @@ def on_state_change(device_name, bleno, trickler_service, state):
 
 
 def on_advertising_start(bleno, trickler_service, error):
+    """Called when bluetooth starts advertising."""
     if error:
         logging.error(error)
     else:
@@ -259,38 +287,43 @@ def on_advertising_start(bleno, trickler_service, error):
 
 
 def on_advertising_stop():
+    """Called when bluetooth stops advertising."""
     logging.info('Stopping advertising')
 
 
 def on_accept(client_address):
+    """Called when a bluetooth client connects."""
     logging.info('Client connected: %r', client_address)
 
 
 def on_disconnect(client_address):
+    """Called when a bluetooth client disconnects."""
     logging.info('Client disconnected: %r', client_address)
 
 
 def graceful_exit(bleno):
+    """Graceful exit function, stop advertising and disconnect clients."""
     bleno.stopAdvertising()
     bleno.disconnect()
     logging.info('Stopping OpenTrickler Bluetooth...')
 
 
 def all_variables_set(memcache, constants):
+    """Validation function to assert that the expected trickler variables are set (not None) before operating."""
     variables = (
-        memcache.get(constants.AUTO_MODE, None) != None,
-        memcache.get(constants.SCALE_STATUS, None) != None,
-        memcache.get(constants.SCALE_WEIGHT, None) != None,
-        memcache.get(constants.SCALE_UNIT, None) != None,
-        memcache.get(constants.TARGET_WEIGHT, None) != None,
-        memcache.get(constants.TARGET_UNIT, None) != None,
+        memcache.get(constants.AUTO_MODE, None) is not None,
+        memcache.get(constants.SCALE_STATUS, None) is not None,
+        memcache.get(constants.SCALE_WEIGHT, None) is not None,
+        memcache.get(constants.SCALE_UNIT, None) is not None,
+        memcache.get(constants.TARGET_WEIGHT, None) is not None,
+        memcache.get(constants.TARGET_UNIT, None) is not None,
     )
     logging.info('Variables: %r', variables)
     return all(variables)
 
 
-def run(config, args):
-    memcache = helpers.get_mc_client()
+def run(config, memcache, args):
+    """Main Bluetooth control loop."""
     constants = enum.Enum('memcache_vars', config['memcache_vars'])
 
     logging.info('Setting up Bluetooth...')
@@ -331,21 +364,38 @@ def run(config, args):
     logging.info('Stopping bluetooth daemon...')
 
 
+# Handle command-line execution.
 if __name__ == '__main__':
     import argparse
     import configparser
 
+
+    # Default argument values.
+    DEFAULTS = dict(
+        verbose = False,
+    )
+
     parser = argparse.ArgumentParser(description='Test bluetooth')
     parser.add_argument('config_file')
+    parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
+    # Parse the config file.
     config = configparser.ConfigParser()
-    config.read_file(open(args.config_file))
+    config.read(args.config_file)
 
-    log_level = logging.INFO
-    if config['general'].getboolean('verbose'):
-        log_level = logging.DEBUG
+    VERBOSE = DEFAULTS['verbose'] or config['general']['verbose']
+    if args.verbose is not None:
+        VERBOSE = args.verbose
 
-    helpers.setup_logging(log_level)
+    # Configure Python logging.
+    LOG_LEVEL = logging.INFO
+    if VERBOSE:
+        LOG_LEVEL = logging.DEBUG
+    helpers.setup_logging(LOG_LEVEL)
 
-    run(config, args)
+    # Setup memcache.
+    memcache_client = helpers.get_mc_client()
+
+    # Run the main bluetooth control loop.
+    run(config, memcache_client, args)
