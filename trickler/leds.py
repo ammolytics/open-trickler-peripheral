@@ -24,6 +24,7 @@ class TricklerStatus(enum.Enum):
     DONE = (True, False)
 
 
+# Mapping of ready states to the corrresponding config file references which name the blink style to use.
 STATUS_MAP = {
     TricklerStatus.READY: 'ready_status_led_mode',
     TricklerStatus.RUNNING: 'running_status_led_mode',
@@ -32,25 +33,31 @@ STATUS_MAP = {
 
 
 def led_fast_blink(led):
+    """Blink the LED fast."""
     led.blink(on_time=0.75, off_time=0.75)
 
 
 def led_slow_blink(led):
+    """Blink the LED slow."""
     led.blink(on_time=1.5, off_time=1.5)
 
 
 def led_off(led):
+    """Turn the LED off."""
     led.off()
 
 
 def led_on(led):
+    """Turn the LED on (solid)."""
     led.on()
 
 
 def led_pulse(led):
+    """Pulse the LED (built-in)."""
     led.pulse()
 
 
+# Mapping of LED blink modes to function names.
 LED_MODES = {
     'fast_blink': led_fast_blink,
     'off': led_off,
@@ -61,21 +68,35 @@ LED_MODES = {
 
 
 def all_variables_set(memcache, constants):
+    """Validation function to assert that the expected trickler variables are set (not None) before operating."""
     variables = (
-        memcache.get(constants.AUTO_MODE, None) != None,
-        memcache.get(constants.TRICKLER_MOTOR_SPEED, None) != None,
+        memcache.get(constants.AUTO_MODE, None) is not None,
+        memcache.get(constants.TRICKLER_MOTOR_SPEED, None) is not None,
     )
     logging.info('Variables: %r', variables)
     return all(variables)
 
 
-def run(config, args):
-    memcache = helpers.get_mc_client()
+def graceful_exit(status_led):
+    """Graceful exit function, turn off LEDs and close GPIO pin."""
+    logging.debug('Closing LED pins...')
+    status_led.off()
+    status_led.close()
+
+
+def run(config, memcache, args):
+    """Main LED control loop."""
+    # Turn this feature off if configured to do so.
+    if config['leds'].getboolean('enable_status_leds') is False:
+        return
+
     constants = enum.Enum('memcache_vars', config['memcache_vars'])
 
-    status_led_pin = int(config['leds']['status_led_pin'])
-    status_led = gpiozero.PWMLED(status_led_pin, active_high=config['leds'].getboolean('active_high', True))
     last_led_fn = None
+    status_led_pin = int(config['leds']['status_led_pin'])
+    active_high = config['leds'].getboolean('active_high', True)
+    status_led = gpiozero.PWMLED(status_led_pin, active_high=active_high)
+    atexit.register(graceful_exit, status_led=status_led)
 
     logging.info('Checking if ready to begin...')
     while 1:
@@ -105,22 +126,38 @@ def run(config, args):
         time.sleep(1)
 
 
+# Handle command-line execution.
 if __name__ == '__main__':
     import argparse
     import configparser
 
+
+    # Default argument values.
+    DEFAULTS = dict(
+        verbose = False,
+    )
+
     parser = argparse.ArgumentParser(description='Test bluetooth')
     parser.add_argument('config_file')
+    parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
+    # Parse the config file.
     config = configparser.ConfigParser()
-    config.read_file(open(args.config_file))
+    config.read(args.config_file)
 
-    log_level = logging.INFO
-    if config['general'].getboolean('verbose'):
-        log_level = logging.DEBUG
+    VERBOSE = DEFAULTS['verbose'] or config['general']['verbose']
+    if args.verbose is not None:
+        VERBOSE = args.verbose
 
-    helpers.setup_logging(log_level)
+    # Configure Python logging.
+    LOG_LEVEL = logging.INFO
+    if VERBOSE:
+        LOG_LEVEL = logging.DEBUG
+    helpers.setup_logging(LOG_LEVEL)
 
-    if config['leds'].getboolean('enable_status_leds'):
-        run(config, args)
+    # Setup memcache.
+    memcache_client = helpers.get_mc_client()
+
+    # Run the main LED control loop.
+    run(config, memcache_client, args)
