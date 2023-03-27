@@ -17,7 +17,6 @@ import time
 import pybleno # pylint: disable=import-error;
 
 import helpers
-import scales
 
 
 TRICKLER_UUID = '10000000-be5f-4b43-a49f-76f2d65c6e28'
@@ -181,7 +180,7 @@ class TargetWeight(BasicCharacteristic):
             callback(pybleno.Characteristic.RESULT_SUCCESS)
 
 
-class ScaleUnit(BasicCharacteristic):
+class ScaleUnit(BasicCharacteristic): # pylint: disable=too-many-instance-attributes;
     """Bluetooth characteristic for the unit setting on the scale."""
 
     def __init__(self, memcache, constants):
@@ -200,7 +199,9 @@ class ScaleUnit(BasicCharacteristic):
         self._write_mc_key = constants.TARGET_UNIT
         self._updateValueCallback = None
         self._send_fn = helpers.enum_to_bytes
-        self._recv_fn = functools.partial(helpers.bytes_to_enum, scales.Units)
+        # Pull unit mappings from memcache into a local Enum. Scale won't change, so neither will this.
+        self._units_enum = enum.Enum('scale_units', self._memcache.get(constants.SCALE_UNITS))
+        self._recv_fn = functools.partial(helpers.bytes_to_enum, self._units_enum)
         self.__value = self.mc_get()
 
     def onWriteRequest(self, data, offset, withoutResponse, callback):
