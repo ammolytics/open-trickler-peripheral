@@ -248,6 +248,7 @@ SCALES = {
 }
 
 
+# Handle command-line execution.
 if __name__ == '__main__':
     import argparse
     import configparser
@@ -273,8 +274,7 @@ if __name__ == '__main__':
 
     # Parse the config file.
     config = configparser.ConfigParser()
-    if args.config_file:
-        config.read(args.config_file)
+    config.read(args.config_file)
 
     # Order of priority is 1) command-line argument, 2) config file, 3) default.
     kwargs = {}
