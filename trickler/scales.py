@@ -271,16 +271,23 @@ if __name__ == '__main__':
     parser.add_argument('--scale_timeout', type=float)
     args = parser.parse_args()
 
-    # Parse the config file, if provided.
+    # Parse the config file.
     config = configparser.ConfigParser()
     if args.config_file:
         config.read(args.config_file)
 
     # Order of priority is 1) command-line argument, 2) config file, 3) default.
     kwargs = {}
+    VERBOSE = DEFAULTS['verbose'] or config['general']['verbose']
+    SCALE_MODEL = DEFAULTS['scale'] or config['scale']['model']
+    SCALE_PORT = DEFAULTS['scale_port'] or config['scale']['port']
+    SCALE_BAUDRATE = DEFAULTS['scale_baudrate'] or config['scale']['baudrate']
+    SCALE_TIMEOUT = DEFAULTS['scale_timeout'] or config['scale']['timeout']
     if args.verbose is not None:
+        VERBOSE = args.verbose
         kwargs['verbose'] = args.verbose
     if args.scale is not None:
+        SCALE_MODEL = args.scale
         kwargs['scale_model'] = args.scale
     if args.scale_port is not None:
         kwargs['port'] = args.scale_port
@@ -288,13 +295,6 @@ if __name__ == '__main__':
         kwargs['baudrate'] = args.scale_baudrate
     if args.scale_timeout is not None:
         kwargs['timeout'] = args.scale_timeout
-
-    VERBOSE = DEFAULTS['verbose'] or config['general']['verbose']
-    if args.verbose is not None:
-        VERBOSE = args.verbose
-    SCALE_MODEL = DEFAULTS['scale'] or config['scale']['model']
-    if args.scale is not None:
-        SCALE_MODEL = args.scale
 
     # Configure Python logging.
     LOG_LEVEL = logging.INFO
