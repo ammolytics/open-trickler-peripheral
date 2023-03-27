@@ -7,6 +7,7 @@ OpenTrickler
 https://github.com/ammolytics/projects/tree/develop/trickler
 """
 
+import atexit
 import logging
 
 import bluezero # pylint: disable=import-error;
@@ -22,6 +23,7 @@ SCALE_UNIT_UUID = '10000003-be5f-4b43-a49f-76f2d65c6e28'
 SCALE_WEIGHT_UUID = '10000001-be5f-4b43-a49f-76f2d65c6e28'
 
 
+# Mapping of bluetooth characteristic settings.
 CHARACTERISTICS = dict(
     auto_mode=dict(
         uuid=AUTO_MODE_UUID,
@@ -51,14 +53,16 @@ CHARACTERISTICS = dict(
 )
 
 
-def graceful_exit():
+def graceful_exit(opentrickler):
+    """Graceful exit function, stop advertising and disconnect clients."""
     logging.info('Stopping OpenTrickler Bluetooth...')
-    pass
+    # Note(eric): Copied these calls from bluezero KeyboardInterrupt handler since it lacks shutdown.
+    opentrickler.mainloop.quit()
+    opentrickler.ad_manager.unregister_advertisement(opentrickler.advert)
 
 
-def main(config, args):
-    memcache = helpers.get_mc_client()
-
+def main(config, memcache, args):
+    """Main Bluetooth control loop."""
     adapters = list(bluezero.adapter.Adapter.available())
     logging.info('Available bluetooth adapters: %s', adapters)
 
@@ -68,9 +72,10 @@ def main(config, args):
     device_name = config['bluetooth']['name']
     opentrickler = bluezero.peripheral.Peripheral(adapter_address, local_name=device_name)
 
-    #atexit.register(functools.partial(graceful_exit, bleno))
+    atexit.register(graceful_exit, opentrickler)
     opentrickler.add_service(srv_id=1, uuid=TRICKLER_UUID, primary=True)
     for i, key, char in enumerate(CHARACTERISTICS.items(), start=1):
+        logging.debug('Adding characteristic: %r', key)
         char['srv_id'] = 1
         char['chr_id'] = i
         char['notifying'] = 'notify' in char['flags']
@@ -79,17 +84,38 @@ def main(config, args):
     opentrickler.publish()
 
 
+# Handle command-line execution.
 if __name__ == '__main__':
     import argparse
     import configparser
 
+
+    # Default argument values.
+    DEFAULTS = dict(
+        verbose = False,
+    )
+
     parser = argparse.ArgumentParser(description='Test bluetooth')
     parser.add_argument('config_file')
+    parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
+    # Parse the config file.
     config = configparser.ConfigParser()
-    config.read_file(open(args.config_file))
+    config.read(args.config_file)
 
-    helpers.setup_logging()
+    VERBOSE = DEFAULTS['verbose'] or config['general']['verbose']
+    if args.verbose is not None:
+        VERBOSE = args.verbose
 
-    main(config, args)
+    # Configure Python logging.
+    LOG_LEVEL = logging.INFO
+    if VERBOSE:
+        LOG_LEVEL = logging.DEBUG
+    helpers.setup_logging(LOG_LEVEL)
+
+    # Setup memcache.
+    memcache_client = helpers.get_mc_client()
+
+    # Run the main bluetooth control loop.
+    main(config, memcache_client, args)
