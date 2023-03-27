@@ -8,6 +8,7 @@ https://github.com/ammolytics/projects/tree/develop/trickler
 """
 
 import atexit
+import enum
 import logging
 
 import gpiozero # pylint: disable=import-error;
@@ -74,7 +75,6 @@ class TricklerMotor:
 if __name__ == '__main__':
     import argparse
     import configparser
-    import enum
     import time
 
     import helpers
