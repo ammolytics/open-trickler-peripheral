@@ -9,10 +9,10 @@ https://github.com/ammolytics/projects/tree/develop/trickler
 
 import datetime
 import decimal
+import enum
 import logging
 import time
 
-import constants
 import helpers
 import PID
 import motors
@@ -29,16 +29,17 @@ import scales
 # 7: Powder pan/cup?
 
 # TODO
-# - document specific python version
 # - handle case where scale is booted with pan on -- shows error instead of negative value
 # - detect scale that's turned off (blank values)
 # - validate inputs (target weight)
 
 
-def trickler_loop(memcache, pid, trickler_motor, scale, target_weight, target_unit, pidtune_logger):
+def trickler_loop(memcache, constants, pid, trickler_motor, scale, target_weight, target_unit, pidtune_logger): # pylint: disable=too-many-arguments;
+    """Main trickler control loop run when all devices are ready, target weight is set, and auto-mode is on."""
     pidtune_logger.info('timestamp, input (motor %), output (weight %)')
     logging.info('Starting trickling process...')
 
+    # Note(eric): All `break` calls will exit the loop and this function.
     while 1:
         # Stop running if auto mode is disabled.
         if not memcache.get(constants.AUTO_MODE):
@@ -91,36 +92,37 @@ def trickler_loop(memcache, pid, trickler_motor, scale, target_weight, target_un
     logging.info('Trickling process stopped.')
 
 
-def main(config, args, pidtune_logger):
-    memcache = helpers.get_mc_client()
+def main(config, memcache, args, pidtune_logger):
+    """Main trickler function. This runs everything."""
+    constants = enum.Enum('memcache_vars', config['memcache_vars'])
 
+    # Set up the PID controller.
     pid = PID.PID(
         float(config['PID']['Kp']),
         float(config['PID']['Ki']),
         float(config['PID']['Kd']))
     logging.debug('pid: %r', pid)
 
-    trickler_motor = motors.TricklerMotor(
-        memcache=memcache,
-        motor_pin=int(config['motors']['trickler_pin']),
-        min_pwm=int(config['motors']['trickler_min_pwm']),
-        max_pwm=int(config['motors']['trickler_max_pwm']))
+    # Set up the trickler motor controller.
+    trickler_motor = motors.TricklerMotor(config, memcache=memcache)
     logging.debug('trickler_motor: %r', trickler_motor)
     #servo_motor = gpiozero.AngularServo(int(config['motors']['servo_pin']))
 
-    scale = scales.SCALES[config['scale']['model']](
-        memcache=memcache,
-        port=config['scale']['port'],
-        baudrate=int(config['scale']['baudrate']),
-        timeout=float(config['scale']['timeout']))
+    # Set up the scale controller.
+    scale_cls = scales.SCALES[config['scale']['model']]
+    scale = scale_cls(config, memcache=memcache)
     logging.debug('scale: %r', scale)
 
-    memcache.set(constants.AUTO_MODE, args.auto_mode or False)
-    memcache.set(constants.TARGET_WEIGHT, args.target_weight or decimal.Decimal('0.0'))
-    memcache.set(constants.TARGET_UNIT, scales.UNIT_MAP.get(args.target_unit, 'GN'))
+    # Set initial values in memcache.
+    memcache.set_multi({
+        constants.AUTO_MODE: args.auto_mode or False,
+        constants.TARGET_WEIGHT: args.target_weight or decimal.Decimal('0.0'),
+        constants.TARGET_UNIT: scale.unit_map.get(args.target_unit, 'GN'),
+    })
 
+    # Outer-most control loop for the whole trickler system.
     while 1:
-        # Update settings.
+        # Update settings from memcache.
         auto_mode = memcache.get(constants.AUTO_MODE)
         target_weight = memcache.get(constants.TARGET_WEIGHT)
         target_unit = memcache.get(constants.TARGET_UNIT)
@@ -150,12 +152,17 @@ def main(config, args, pidtune_logger):
             # Wait a second to start trickling.
             time.sleep(1)
             # Run trickler loop.
-            trickler_loop(memcache, pid, trickler_motor, scale, target_weight, target_unit, pidtune_logger)
+            trickler_loop(memcache, constants, pid, trickler_motor, scale, target_weight, target_unit, pidtune_logger)
 
 
 if __name__ == '__main__':
     import argparse
     import configparser
+
+    # Default argument values.
+    DEFAULTS = dict(
+        verbose = False,
+    )
 
     parser = argparse.ArgumentParser(description='Run OpenTrickler.')
     parser.add_argument('config_file')
@@ -163,24 +170,36 @@ if __name__ == '__main__':
     parser.add_argument('--auto_mode', action='store_true')
     parser.add_argument('--pid_tune', action='store_true')
     parser.add_argument('--target_weight', type=decimal.Decimal, default=0)
-    parser.add_argument('--target_unit', choices=scales.UNIT_MAP.keys(), default='GN')
+    parser.add_argument('--target_unit', choices=('g', 'GN'), default='GN')
     args = parser.parse_args()
 
     config = configparser.ConfigParser()
-    config.read_file(open(args.config_file))
+    if args.config_file:
+        config.read(args.config_file)
 
-    log_level = logging.INFO
-    if args.verbose or config['general'].getboolean('verbose'):
-        log_level = logging.DEBUG
+    # Order of priority is 1) command-line argument, 2) config file, 3) default.
+    VERBOSE = DEFAULTS['verbose'] or config['general']['verbose']
+    if args.verbose is not None:
+        VERBOSE = args.verbose
 
-    helpers.setup_logging(log_level)
+    # Configure Python logging.
+    LOG_LEVEL = logging.INFO
+    if VERBOSE:
+        LOG_LEVEL = logging.DEBUG
+    helpers.setup_logging(LOG_LEVEL)
 
+    # Setup memcache.
+    memcache_client = helpers.get_mc_client()
+
+    # Set up a separate logger for PID tuning with it's own format.
     pidtune_logger = logging.getLogger('pid_tune')
     pid_handler = logging.StreamHandler()
     pid_handler.setFormatter(logging.Formatter('%(message)s'))
 
+    # Configure the log level based on if the tuner feature should be active.
     pidtune_logger.setLevel(logging.ERROR)
     if args.pid_tune or config['PID'].getboolean('pid_tuner_mode'):
         pidtune_logger.setLevel(logging.INFO)
 
-    main(config, args, pidtune_logger)
+    # Run the main trickler program.
+    main(config, memcache_client, args, pidtune_logger)
