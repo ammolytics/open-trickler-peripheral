@@ -8,6 +8,7 @@ https://github.com/ammolytics/projects/tree/develop/trickler
 """
 
 import atexit
+import collections
 import decimal
 import enum
 import logging
@@ -187,8 +188,11 @@ class ANDScale(SerialScale):
         except UnicodeDecodeError:
             logging.debug('Could not decode bytes to unicode.')
         else:
-            status = line[0:2]
-            handler = handlers.get(status, noop)
+            # Pull the first characters (status code, on this scale)
+            prefix = line[0:2]
+            # Get a handler function based on the prefix
+            handler = handlers.get(prefix, noop)
+            # Run the function to handle the input.
             handler(line)
 
     def _stable_unstable(self, line):
@@ -242,13 +246,15 @@ class ANDScale(SerialScale):
         logging.info('scale serial number: %s', serial_number)
 
 
-
 class CreedmoorScale(SerialScale):
     """Class for controlling a Creedmoor Sports TRX-925 scale."""
+
+    STABLE_READING_LEN = 5
 
     def __init__(self, config, port='/dev/ttyUSB0', baudrate=9600, timeout=0.1, **kwargs):
         """Only overriding this to provide scale specific constructor arguments."""
         super().__init__(config=config, port=port, baudrate=baudrate, timeout=timeout, **kwargs)
+        self._readings = collections.deque(maxlen=self.STABLE_READING_LEN)
 
     @classmethod
     @property
@@ -268,6 +274,13 @@ class CreedmoorScale(SerialScale):
             cls.Units.GRAMS: decimal.Decimal('0.0001'),
         }
 
+    def _check_stability(self):
+        """Checks the internal list of readings and infer if the scale reading is stable."""
+        if len(self._readings) == self.STABLE_READING_LEN and len(set(self._readings)) == 1:
+            self.status = self.StatusMap.STABLE
+        else:
+            self.status = self.StatusMap.UNSTABLE
+
     # TODO(eric): Check manual.
     def change_unit(self):
         """Changes the unit of weight on the scale."""
@@ -279,12 +292,11 @@ class CreedmoorScale(SerialScale):
         # Run update fn to set latest values.
         self.update()
 
-    # TODO(eric): Implement.
     def update(self):
         """Read from the serial port and update an instance of this class with the most recent values."""
         handlers = {
-            '+': self._stable,
-            '-': self._unstable,
+            '+': self._stable_unstable,
+            '-': self._stable_unstable,
             None: noop,
         }
 
@@ -298,32 +310,29 @@ class CreedmoorScale(SerialScale):
         except UnicodeDecodeError:
             logging.debug('Could not decode bytes to unicode.')
         else:
-            status = line[0:2]
-            handler = handlers.get(status, noop)
+            # Pull the first character (positive or negative, on this scale)
+            prefix = line[0:1]
+            # Get a handler function based on the prefix
+            handler = handlers.get(prefix, noop)
+            # Run the function to handle the input.
             handler(line)
 
-    # TODO(eric): Implement.
     def _stable_unstable(self, line):
         """Update the scale when status is stable or unstable."""
-        weight = line[3:12].strip()
+        # Push the latest reading into the internal list.
+        self._readings.append(line)
+        # Update internal stability bit.
+        self._check_stability()
+        # Store the numeric weight from the scale reading.
+        weight = line[0:8]
         self.weight = decimal.Decimal(weight)
-
-        unit = line[12:15].strip()
+        # Get the unit of measurement from the scale reading and store the mapped value.
+        unit = line[9:11]
         self.unit = self.unit_map[unit]
         # Update the resolution according to the current unit of measure and supported resolutions.
         self.resolution = self.resolution_map[self.unit]
         # Update memcache values.
         self._update_memcache()
-
-    def _stable(self, line):
-        """Scale is stable."""
-        self.status = self.StatusMap.STABLE
-        self._stable_unstable(line)
-
-    def _unstable(self, line):
-        """Scale is unstable."""
-        self.status = self.StatusMap.UNSTABLE
-        self._stable_unstable(line)
 
 
 SCALES = {
