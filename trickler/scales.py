@@ -8,6 +8,7 @@ https://github.com/ammolytics/projects/tree/develop/trickler
 """
 
 import atexit
+import collections
 import decimal
 import enum
 import logging
@@ -32,9 +33,14 @@ class SerialScale:
         GRAMS = 1
 
     class StatusMap(enum.Enum):
-        """These two statuses are required, others can be defined by overriding in subclasses."""
+        """Status value mapping, only reference those supported by your scale."""
         STABLE = 0
         UNSTABLE = 1
+        OVERLOAD = 2
+        ERROR = 3
+        MODEL_NUMBER = 4
+        SERIAL_NUMBER = 5
+        ACKNOWLEDGE = 6
 
     def __init__(self, config, **kwargs):
         """Base scale class constructor. Should not usually need to be overridden."""
@@ -58,6 +64,17 @@ class SerialScale:
         self.weight = decimal.Decimal('0.00')
         self.status = self.StatusMap.STABLE
         self._store_scale_config()
+
+    def _update_memcache(self):
+        """ Update memcache values if the memcache client has been provided."""
+        if self._memcache:
+            self._memcache.set_multi({
+                self._constants.SCALE_STATUS: self.status,
+                self._constants.SCALE_WEIGHT: self.weight,
+                self._constants.SCALE_UNIT: self.unit,
+                self._constants.SCALE_RESOLUTION: self.resolution,
+                self._constants.SCALE_IS_STABLE: self.is_stable,
+            })
 
     def _graceful_exit(self):
         """Graceful exit, closes serial port."""
@@ -112,18 +129,8 @@ class SerialScale:
         raise NotImplementedError('The update() method needs to be defined in a brand-specific scale class.')
 
 
-class ANDFx120(SerialScale):
+class ANDScale(SerialScale):
     """Class for controlling an A&D FX120 scale."""
-
-    class StatusMap(enum.Enum):
-        """Status values supported by AND scales."""
-        STABLE = 0
-        UNSTABLE = 1
-        OVERLOAD = 2
-        ERROR = 3
-        MODEL_NUMBER = 4
-        SERIAL_NUMBER = 5
-        ACKNOWLEDGE = 6
 
     def __init__(self, config, port='/dev/ttyUSB0', baudrate=19200, timeout=0.1, **kwargs):
         """Only overriding this to provide scale specific constructor arguments."""
@@ -176,12 +183,16 @@ class ANDFx120(SerialScale):
         raw = self._serial.readline()
         logging.debug(raw)
         try:
+            # Remove all leading and trailing whitespace characters then decode from bytestring into unicode.
             line = raw.strip().decode('utf-8')
         except UnicodeDecodeError:
             logging.debug('Could not decode bytes to unicode.')
         else:
-            status = line[0:2]
-            handler = handlers.get(status, noop)
+            # Pull the first characters (status code, on this scale)
+            prefix = line[0:2]
+            # Get a handler function based on the prefix
+            handler = handlers.get(prefix, noop)
+            # Run the function to handle the input.
             handler(line)
 
     def _stable_unstable(self, line):
@@ -194,13 +205,8 @@ class ANDFx120(SerialScale):
         self.unit = self.unit_map[unit]
         # Update the resolution according to the current unit of measure and supported resolutions.
         self.resolution = self.resolution_map[self.unit]
-        # Update memcache values if the memcache client has been provided.
-        if self._memcache:
-            self._memcache.set(self._constants.SCALE_STATUS, self.status)
-            self._memcache.set(self._constants.SCALE_WEIGHT, self.weight)
-            self._memcache.set(self._constants.SCALE_UNIT, self.unit)
-            self._memcache.set(self._constants.SCALE_RESOLUTION, self.resolution)
-            self._memcache.set(self._constants.SCALE_IS_STABLE, self.is_stable)
+        # Update memcache values.
+        self._update_memcache()
 
     def _stable(self, line):
         """Scale is stable."""
@@ -215,20 +221,17 @@ class ANDFx120(SerialScale):
     def _overload(self, line):
         """Scale is overloaded."""
         self.status = self.StatusMap.OVERLOAD
-        if self._memcache:
-            self._memcache.set(self._constants.SCALE_STATUS, self.status)
+        self._update_memcache()
 
     def _error(self, line):
         """Scale has an error."""
         self.status = self.StatusMap.ERROR
-        if self._memcache:
-            self._memcache.set(self._constants.SCALE_STATUS, self.status)
+        self._update_memcache()
 
     def _acknowledge(self, line):
         """Scale has acknowledged a command."""
         self.status = self.StatusMap.ACKNOWLEDGE
-        if self._memcache:
-            self._memcache.set(self._constants.SCALE_STATUS, self.status)
+        self._update_memcache()
 
     def _model_number(self, line):
         """Gets & prints the scale's model number."""
@@ -243,8 +246,101 @@ class ANDFx120(SerialScale):
         logging.info('scale serial number: %s', serial_number)
 
 
+class CreedmoorScale(SerialScale):
+    """Class for controlling a Creedmoor Sports TRX-925 scale."""
+
+    STABLE_READING_LEN = 5
+
+    def __init__(self, config, port='/dev/ttyUSB0', baudrate=9600, timeout=0.1, **kwargs):
+        """Only overriding this to provide scale specific constructor arguments."""
+        super().__init__(config=config, port=port, baudrate=baudrate, timeout=timeout, **kwargs)
+        # Internal storage for scale readings to infer stability.
+        self._readings = collections.deque(maxlen=self.STABLE_READING_LEN)
+
+    @classmethod
+    @property
+    def unit_map(cls):
+        """Mapping of self.unit keys to string units of weight as used by the scale."""
+        return {
+            'GN': cls.Units.GRAINS,
+            'g': cls.Units.GRAMS,
+         }
+
+    @classmethod
+    @property
+    def resolution_map(cls):
+        """Map self.units to matching resolutions with decimal.Decimal values."""
+        return {
+            cls.Units.GRAINS: decimal.Decimal('0.01'),
+            cls.Units.GRAMS: decimal.Decimal('0.0001'),
+        }
+
+    # Note(eric): There is no documentation on how to do this for this scale.
+    def change_unit(self):
+        """Changes the unit of weight on the scale."""
+        logging.debug('changing weight unit on scale from: %r', self.unit)
+        # Send Mode button command.
+        self._serial.write(b'U\r\n')
+        # Sleep 1s and wait for change to take effect.
+        time.sleep(1)
+        # Run update fn to set latest values.
+        self.update()
+
+    def update(self):
+        """Read from the serial port and update an instance of this class with the most recent values."""
+        handlers = {
+            '+': self._stable_unstable,
+            '-': self._stable_unstable,
+            None: noop,
+        }
+
+        # Note: The input buffer can fill up, causing latency. Clear it before reading.
+        self._serial.reset_input_buffer()
+        raw = self._serial.readline()
+        logging.debug(raw)
+        try:
+            # Remove trailing newline characters, then decode from bytestring into unicode.
+            line = raw.rstrip(b'\r\n').decode('utf-8')
+        except UnicodeDecodeError:
+            logging.debug('Could not decode bytes to unicode.')
+        else:
+            # Pull the first character (positive or negative, on this scale)
+            prefix = line[0:1]
+            # Get a handler function based on the prefix
+            handler = handlers.get(prefix, noop)
+            # Run the function to handle the input.
+            handler(line)
+
+    def _check_stability(self):
+        """Checks the internal list of readings and infer if the scale reading is stable."""
+        if len(self._readings) == self._readings.maxlen and len(set(self._readings)) == 1:
+            self.status = self.StatusMap.STABLE
+        else:
+            self.status = self.StatusMap.UNSTABLE
+
+    def _stable_unstable(self, line):
+        """Update the scale when status is stable or unstable."""
+        # Push the latest reading into the internal list.
+        self._readings.append(line)
+        # Update internal stability bit.
+        self._check_stability()
+        # Store the numeric weight from the scale reading.
+        weight = line[0:8]
+        self.weight = decimal.Decimal(weight)
+        # Get the unit of measurement from the scale reading and store the mapped value.
+        unit = line[9:11]
+        self.unit = self.unit_map[unit]
+        # Update the resolution according to the current unit of measure and supported resolutions.
+        self.resolution = self.resolution_map[self.unit]
+        # Update memcache values.
+        self._update_memcache()
+
+
 SCALES = {
-    'and-fx120': ANDFx120,
+    'and': ANDScale,
+    'creedmoor': CreedmoorScale,
+    # Legacy naming support.
+    'and-fx120': ANDScale,
 }
 
 
