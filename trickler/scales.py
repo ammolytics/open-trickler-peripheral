@@ -281,7 +281,7 @@ class CreedmoorScale(SerialScale):
         else:
             self.status = self.StatusMap.UNSTABLE
 
-    # TODO(eric): Check manual.
+    # Note(eric): There is no documentation on how to do this for this scale.
     def change_unit(self):
         """Changes the unit of weight on the scale."""
         logging.debug('changing weight unit on scale from: %r', self.unit)
@@ -350,7 +350,7 @@ if __name__ == '__main__':
 
 
     # Default argument values.
-    DEFAULTS = dict( # pylint: disable=use-dict-literal;
+    DEFAULTS = dict(
         verbose = False,
         scale = 'and-fx120',
         scale_port = '/dev/ttyUSB0',
