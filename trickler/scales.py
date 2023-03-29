@@ -254,6 +254,7 @@ class CreedmoorScale(SerialScale):
     def __init__(self, config, port='/dev/ttyUSB0', baudrate=9600, timeout=0.1, **kwargs):
         """Only overriding this to provide scale specific constructor arguments."""
         super().__init__(config=config, port=port, baudrate=baudrate, timeout=timeout, **kwargs)
+        # Internal storage for scale readings to infer stability.
         self._readings = collections.deque(maxlen=self.STABLE_READING_LEN)
 
     @classmethod
@@ -273,13 +274,6 @@ class CreedmoorScale(SerialScale):
             cls.Units.GRAINS: decimal.Decimal('0.01'),
             cls.Units.GRAMS: decimal.Decimal('0.0001'),
         }
-
-    def _check_stability(self):
-        """Checks the internal list of readings and infer if the scale reading is stable."""
-        if len(self._readings) == self._readings.maxlen and len(set(self._readings)) == 1:
-            self.status = self.StatusMap.STABLE
-        else:
-            self.status = self.StatusMap.UNSTABLE
 
     # Note(eric): There is no documentation on how to do this for this scale.
     def change_unit(self):
@@ -316,6 +310,13 @@ class CreedmoorScale(SerialScale):
             handler = handlers.get(prefix, noop)
             # Run the function to handle the input.
             handler(line)
+
+    def _check_stability(self):
+        """Checks the internal list of readings and infer if the scale reading is stable."""
+        if len(self._readings) == self._readings.maxlen and len(set(self._readings)) == 1:
+            self.status = self.StatusMap.STABLE
+        else:
+            self.status = self.StatusMap.UNSTABLE
 
     def _stable_unstable(self, line):
         """Update the scale when status is stable or unstable."""
