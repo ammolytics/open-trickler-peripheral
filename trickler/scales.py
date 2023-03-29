@@ -24,7 +24,7 @@ def noop(*args, **kwargs):
     return
 
 
-class SerialScale:
+class SerialScale: # pylint: disable=too-many-instance-attributes;
     """Base class for a digital scale connected over a serial port."""
 
     class Units(enum.Enum):
@@ -64,6 +64,8 @@ class SerialScale:
         self.weight = decimal.Decimal('0.00')
         self.status = self.StatusMap.STABLE
         self._store_scale_config()
+        # Internal storage for scale readings to infer stability, used for scales that don't provide it.
+        self._readings = collections.deque(maxlen=int(config['scale']['stable_reading_length']))
 
     def _update_memcache(self):
         """ Update memcache values if the memcache client has been provided."""
@@ -91,6 +93,13 @@ class SerialScale:
                 self._constants.SCALE_RESOLUTION_MAP: self.resolution_map,
                 self._constants.SCALE_STATUS_MAP: {x.name: x.value for x in self.StatusMap},
             })
+
+    def _check_stability(self):
+        """Checks the internal list of readings and infer if the scale reading is stable."""
+        if len(self._readings) == self._readings.maxlen and len(set(self._readings)) == 1:
+            self.status = self.StatusMap.STABLE
+        else:
+            self.status = self.StatusMap.UNSTABLE
 
     @classmethod
     @property
@@ -249,13 +258,9 @@ class ANDScale(SerialScale):
 class CreedmoorScale(SerialScale):
     """Class for controlling a Creedmoor Sports TRX-925 scale."""
 
-    STABLE_READING_LEN = 5
-
     def __init__(self, config, port='/dev/ttyUSB0', baudrate=9600, timeout=0.1, **kwargs):
         """Only overriding this to provide scale specific constructor arguments."""
         super().__init__(config=config, port=port, baudrate=baudrate, timeout=timeout, **kwargs)
-        # Internal storage for scale readings to infer stability.
-        self._readings = collections.deque(maxlen=self.STABLE_READING_LEN)
 
     @classmethod
     @property
@@ -310,13 +315,6 @@ class CreedmoorScale(SerialScale):
             handler = handlers.get(prefix, noop)
             # Run the function to handle the input.
             handler(line)
-
-    def _check_stability(self):
-        """Checks the internal list of readings and infer if the scale reading is stable."""
-        if len(self._readings) == self._readings.maxlen and len(set(self._readings)) == 1:
-            self.status = self.StatusMap.STABLE
-        else:
-            self.status = self.StatusMap.UNSTABLE
 
     def _stable_unstable(self, line):
         """Update the scale when status is stable or unstable."""
