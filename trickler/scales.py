@@ -276,7 +276,7 @@ class CreedmoorScale(SerialScale):
 
     def _check_stability(self):
         """Checks the internal list of readings and infer if the scale reading is stable."""
-        if len(self._readings) == self.STABLE_READING_LEN and len(set(self._readings)) == 1:
+        if len(self._readings) == self._readings.maxlen and len(set(self._readings)) == 1:
             self.status = self.StatusMap.STABLE
         else:
             self.status = self.StatusMap.UNSTABLE
