@@ -174,6 +174,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     config = configparser.ConfigParser()
+    config.optionxform = str
     if args.config_file:
         config.read(args.config_file)
 

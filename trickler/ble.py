@@ -102,6 +102,7 @@ if __name__ == '__main__':
 
     # Parse the config file.
     config = configparser.ConfigParser()
+    config.optionxform = str
     config.read(args.config_file)
 
     VERBOSE = DEFAULTS['verbose'] or config['general']['verbose']
