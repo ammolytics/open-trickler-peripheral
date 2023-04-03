@@ -90,7 +90,7 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
                 self._constants.SCALE_UNITS: {x.name: x.value for x in self.Units},
                 self._constants.SCALE_UNIT_MAP: {k: self.unit_map[k].value for k in self.unit_map},
                 self._constants.SCALE_REVERSE_UNIT_MAP: {k.value: self.reverse_unit_map[k] for k in self.reverse_unit_map},
-                self._constants.SCALE_RESOLUTION_MAP: {k: self.resolution_map[k].value for k in self.resolution_map},
+                self._constants.SCALE_RESOLUTION_MAP: {k.value: self.resolution_map[k] for k in self.resolution_map},
                 self._constants.SCALE_STATUS_MAP: {x.name: x.value for x in self.StatusMap},
             })
 
