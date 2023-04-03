@@ -111,7 +111,7 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
     @property
     def reverse_unit_map(cls):
         """Reverse mapping of self.unit_map."""
-        cache_hit =  getattr(cls, '__cached_reverse_unit_map')
+        cache_hit =  getattr(cls, '__cached_reverse_unit_map', None)
         if cache_hit:
             return cache_hit
         reversed_map = dict((v, k) for k, v in cls.unit_map.items()) # pylint: disable=no-member;
