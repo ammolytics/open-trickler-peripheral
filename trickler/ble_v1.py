@@ -199,8 +199,14 @@ class ScaleUnit(BasicCharacteristic): # pylint: disable=too-many-instance-attrib
         self._write_mc_key = constants.TARGET_UNIT.value
         self._updateValueCallback = None
         self._send_fn = helpers.enum_to_bytes
+        scale_units = None
+        logging.info('Waiting for scale_units to populate in memcache...')
+        while scale_units is None:
+            scale_units = self._memcache.get(constants.SCALE_UNITS.value)
+            logging.info(f'scale_units: {scale_units!r}')
+
         # Pull unit mappings from memcache into a local Enum. Scale won't change, so neither will this.
-        self._units_enum = enum.Enum('scale_units', self._memcache.get(constants.SCALE_UNITS.value))
+        self._units_enum = enum.Enum('scale_units', scale_units)
         self._recv_fn = functools.partial(helpers.bytes_to_enum, self._units_enum)
         self.__value = self.mc_get()
 
