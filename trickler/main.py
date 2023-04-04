@@ -42,7 +42,7 @@ def trickler_loop(memcache, constants, pid, trickler_motor, scale, target_weight
     # Note(eric): All `break` calls will exit the loop and this function.
     while 1:
         # Stop running if auto mode is disabled.
-        if not memcache.get(constants.AUTO_MODE):
+        if not memcache.get(constants.AUTO_MODE.value):
             logging.debug('auto mode disabled.')
             break
 
@@ -115,17 +115,17 @@ def main(config, memcache, args, pidtune_logger):
 
     # Set initial values in memcache.
     memcache.set_multi({
-        constants.AUTO_MODE: args.auto_mode or False,
-        constants.TARGET_WEIGHT: args.target_weight or decimal.Decimal('0.0'),
-        constants.TARGET_UNIT: scale.unit_map.get(args.target_unit, 'GN'),
+        constants.AUTO_MODE.value: args.auto_mode or False,
+        constants.TARGET_WEIGHT.value: args.target_weight or decimal.Decimal('0.0'),
+        constants.TARGET_UNIT.value: scale.unit_map.get(args.target_unit, 'GN'),
     })
 
     # Outer-most control loop for the whole trickler system.
     while 1:
         # Update settings from memcache.
-        auto_mode = memcache.get(constants.AUTO_MODE)
-        target_weight = memcache.get(constants.TARGET_WEIGHT)
-        target_unit = memcache.get(constants.TARGET_UNIT)
+        auto_mode = memcache.get(constants.AUTO_MODE.value)
+        target_weight = memcache.get(constants.TARGET_WEIGHT.value)
+        target_unit = memcache.get(constants.TARGET_UNIT.value)
         # Use percentages for PID control to avoid complexity w/ different units of weight.
         pid.SetPoint = 100.0
         scale.update()

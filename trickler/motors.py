@@ -57,7 +57,7 @@ class TricklerMotor:
             logging.debug('Setting speed from %r to %r', self.speed, speed)
             self.pwm.value = speed
             if self._memcache:
-                self._memcache.set(self._constants.TRICKLER_MOTOR_SPEED, self.speed)
+                self._memcache.set(self._constants.TRICKLER_MOTOR_SPEED.value, self.speed)
         else:
             logging.debug('invalid motor speed: %r must be between 0 and 1.', speed)
 

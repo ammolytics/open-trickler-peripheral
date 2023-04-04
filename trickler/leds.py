@@ -70,8 +70,8 @@ LED_MODES = {
 def all_variables_set(memcache, constants):
     """Validation function to assert that the expected trickler variables are set (not None) before operating."""
     variables = (
-        memcache.get(constants.AUTO_MODE, None) is not None,
-        memcache.get(constants.TRICKLER_MOTOR_SPEED, None) is not None,
+        memcache.get(constants.AUTO_MODE.value, None) is not None,
+        memcache.get(constants.TRICKLER_MOTOR_SPEED.value, None) is not None,
     )
     logging.info('Variables: %r', variables)
     return all(variables)
@@ -107,8 +107,8 @@ def run(config, memcache, args):
 
     while 1:
         try:
-            motor_on = float(memcache.get(constants.TRICKLER_MOTOR_SPEED, 0.0)) > 0
-            auto_mode = memcache.get(constants.AUTO_MODE)
+            motor_on = float(memcache.get(constants.TRICKLER_MOTOR_SPEED.value, 0.0)) > 0
+            auto_mode = memcache.get(constants.AUTO_MODE.value)
         except (KeyError, ValueError):
             logging.exception('Possible cache miss, trying again.')
             break
