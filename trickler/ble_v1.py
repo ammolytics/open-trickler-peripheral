@@ -101,7 +101,7 @@ class AutoMode(BasicCharacteristic):
             'value': False,
         })
         self._memcache = memcache
-        self._mc_key = constants.AUTO_MODE
+        self._mc_key = constants.AUTO_MODE.value
         self._updateValueCallback = None
         self._send_fn = helpers.bool_to_bytes
         self._recv_fn = helpers.bytes_to_bool
@@ -137,7 +137,7 @@ class ScaleStatus(BasicCharacteristic):
                 ))],
         })
         self._memcache = memcache
-        self._mc_key = constants.SCALE_STATUS
+        self._mc_key = constants.SCALE_STATUS.value
         self._updateValueCallback = None
         self._send_fn = helpers.enum_to_bytes
         self._recv_fn = helpers.bytes_to_enum
@@ -159,7 +159,7 @@ class TargetWeight(BasicCharacteristic):
                 ))],
         })
         self._memcache = memcache
-        self._mc_key = constants.TARGET_WEIGHT
+        self._mc_key = constants.TARGET_WEIGHT.value
         self._updateValueCallback = None
         self._send_fn = helpers.decimal_to_bytes
         self._recv_fn = helpers.bytes_to_decimal
@@ -195,12 +195,12 @@ class ScaleUnit(BasicCharacteristic): # pylint: disable=too-many-instance-attrib
                 ))],
         })
         self._memcache = memcache
-        self._mc_key = constants.SCALE_UNIT
-        self._write_mc_key = constants.TARGET_UNIT
+        self._mc_key = constants.SCALE_UNIT.value
+        self._write_mc_key = constants.TARGET_UNIT.value
         self._updateValueCallback = None
         self._send_fn = helpers.enum_to_bytes
         # Pull unit mappings from memcache into a local Enum. Scale won't change, so neither will this.
-        self._units_enum = enum.Enum('scale_units', self._memcache.get(constants.SCALE_UNITS))
+        self._units_enum = enum.Enum('scale_units', self._memcache.get(constants.SCALE_UNITS.value))
         self._recv_fn = functools.partial(helpers.bytes_to_enum, self._units_enum)
         self.__value = self.mc_get()
 
@@ -235,7 +235,7 @@ class ScaleWeight(BasicCharacteristic):
                 ))],
         })
         self._memcache = memcache
-        self._mc_key = constants.SCALE_WEIGHT
+        self._mc_key = constants.SCALE_WEIGHT.value
         self._updateValueCallback = None
         self._send_fn = helpers.decimal_to_bytes
         self._recv_fn = helpers.bytes_to_decimal
@@ -312,12 +312,12 @@ def graceful_exit(bleno):
 def all_variables_set(memcache, constants):
     """Validation function to assert that the expected trickler variables are set (not None) before operating."""
     variables = (
-        memcache.get(constants.AUTO_MODE, None) is not None,
-        memcache.get(constants.SCALE_STATUS, None) is not None,
-        memcache.get(constants.SCALE_WEIGHT, None) is not None,
-        memcache.get(constants.SCALE_UNIT, None) is not None,
-        memcache.get(constants.TARGET_WEIGHT, None) is not None,
-        memcache.get(constants.TARGET_UNIT, None) is not None,
+        memcache.get(constants.AUTO_MODE.value, None) is not None,
+        memcache.get(constants.SCALE_STATUS.value, None) is not None,
+        memcache.get(constants.SCALE_WEIGHT.value, None) is not None,
+        memcache.get(constants.SCALE_UNIT.value, None) is not None,
+        memcache.get(constants.TARGET_WEIGHT.value, None) is not None,
+        memcache.get(constants.TARGET_UNIT.value, None) is not None,
     )
     logging.info('Variables: %r', variables)
     return all(variables)
