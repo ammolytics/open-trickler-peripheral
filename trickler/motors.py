@@ -25,8 +25,8 @@ class TricklerMotor:
         self._constants = enum.Enum('memcache_vars', dict(config['memcache_vars']))
 
         self.motor_pin = kwargs.get('motor_pin', config['motors']['trickler_pin'])
-        self.min_pwm = kwargs.get('min_pwm', config['motors']['trickler_min_pwm'])
-        self.max_pwm = kwargs.get('max_pwm', config['motors']['trickler_max_pwm'])
+        self.min_pwm = float(kwargs.get('min_pwm', config['motors']['trickler_min_pwm']))
+        self.max_pwm = float(kwargs.get('max_pwm', config['motors']['trickler_max_pwm']))
 
         self.pwm = gpiozero.PWMOutputDevice(self.motor_pin)
         logging.debug(
