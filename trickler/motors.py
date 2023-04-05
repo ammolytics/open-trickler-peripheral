@@ -25,8 +25,8 @@ class TricklerMotor:
         self._constants = enum.Enum('memcache_vars', dict(config['memcache_vars']))
 
         self.motor_pin = kwargs.get('motor_pin', config['motors']['trickler_pin'])
-        self.min_pwm = kwargs.get('min_pwm', config['motors']['trickler_min_pwm'])
-        self.max_pwm = kwargs.get('max_pwm', config['motors']['trickler_max_pwm'])
+        self.min_pwm = float(kwargs.get('min_pwm', config['motors']['trickler_min_pwm']))
+        self.max_pwm = float(kwargs.get('max_pwm', config['motors']['trickler_max_pwm']))
 
         self.pwm = gpiozero.PWMOutputDevice(self.motor_pin)
         logging.debug(
@@ -57,7 +57,7 @@ class TricklerMotor:
             logging.debug('Setting speed from %r to %r', self.speed, speed)
             self.pwm.value = speed
             if self._memcache:
-                self._memcache.set(self._constants.TRICKLER_MOTOR_SPEED, self.speed)
+                self._memcache.set(self._constants.TRICKLER_MOTOR_SPEED.value, self.speed)
         else:
             logging.debug('invalid motor speed: %r must be between 0 and 1.', speed)
 
@@ -96,6 +96,7 @@ if __name__ == '__main__':
 
     # Parse the config file.
     config = configparser.ConfigParser()
+    config.optionxform = str
     config.read(args.config_file)
 
     # Order of priority is 1) command-line argument, 2) config file, 3) default.

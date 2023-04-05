@@ -71,11 +71,11 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
         """ Update memcache values if the memcache client has been provided."""
         if self._memcache:
             self._memcache.set_multi({
-                self._constants.SCALE_STATUS: self.status,
-                self._constants.SCALE_WEIGHT: self.weight,
-                self._constants.SCALE_UNIT: self.unit,
-                self._constants.SCALE_RESOLUTION: self.resolution,
-                self._constants.SCALE_IS_STABLE: self.is_stable,
+                self._constants.SCALE_STATUS.value: self.status,
+                self._constants.SCALE_WEIGHT.value: self.weight,
+                self._constants.SCALE_UNIT.value: self.unit,
+                self._constants.SCALE_RESOLUTION.value: self.resolution,
+                self._constants.SCALE_IS_STABLE.value: self.is_stable,
             })
 
     def _graceful_exit(self):
@@ -87,11 +87,11 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
         """Store the unit and status maps into memcache for reference elsewhere."""
         if self._memcache:
             self._memcache.set_multi({
-                self._constants.SCALE_UNITS: {x.name: x.value for x in self.Units},
-                self._constants.SCALE_UNIT_MAP: self.unit_map,
-                self._constants.SCALE_REVERSE_UNIT_MAP: self.reverse_unit_map,
-                self._constants.SCALE_RESOLUTION_MAP: self.resolution_map,
-                self._constants.SCALE_STATUS_MAP: {x.name: x.value for x in self.StatusMap},
+                self._constants.SCALE_UNITS.value: {x.name: x.value for x in self.Units},
+                self._constants.SCALE_UNIT_MAP.value: {k: self.unit_map[k].value for k in self.unit_map},
+                self._constants.SCALE_REVERSE_UNIT_MAP.value: {k.value: self.reverse_unit_map[k] for k in self.reverse_unit_map},
+                self._constants.SCALE_RESOLUTION_MAP.value: {k.value: self.resolution_map[k] for k in self.resolution_map},
+                self._constants.SCALE_STATUS_MAP.value: {x.name: x.value for x in self.StatusMap},
             })
 
     def _check_stability(self):
@@ -111,7 +111,7 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
     @property
     def reverse_unit_map(cls):
         """Reverse mapping of self.unit_map."""
-        cache_hit =  getattr(cls, '__cached_reverse_unit_map')
+        cache_hit =  getattr(cls, '__cached_reverse_unit_map', None)
         if cache_hit:
             return cache_hit
         reversed_map = dict((v, k) for k, v in cls.unit_map.items()) # pylint: disable=no-member;
@@ -368,6 +368,7 @@ if __name__ == '__main__':
 
     # Parse the config file.
     config = configparser.ConfigParser()
+    config.optionxform = str
     config.read(args.config_file)
 
     # Order of priority is 1) command-line argument, 2) config file, 3) default.
