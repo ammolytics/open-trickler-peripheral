@@ -19,6 +19,14 @@ import serial # pylint: disable=import-error;
 import helpers
 
 
+class ScaleException(Exception):
+    pass
+
+
+class ScaleNotReady(ScaleException):
+    pass
+
+
 def noop(*args, **kwargs):
     """No-op function for scales to use on throwaway status updates."""
     return
@@ -49,14 +57,18 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
         # Pull default values from config, giving preference to provided arguments.
         self._constants = enum.Enum('memcache_vars', dict(config['memcache_vars']))
 
+        # Set up crash protection that closes the serial port so the program can restart.
+        atexit.register(self._graceful_exit)
+
         # Set up the internal serial port connection.
         port = kwargs.get('port', config['scale']['port'])
         baudrate = kwargs.get('baudrate', int(config['scale']['baudrate']))
         timeout = kwargs.get('timeout', float(config['scale']['timeout']))
-        self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-
-        # Set up crash protection that closes the serial port so the program can restart.
-        atexit.register(self._graceful_exit)
+        try:
+            self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
+        except (serial.SerialException, FileNotFoundError):
+            logging.exception('Scale is not ready! The error traceback follows for context.')
+            raise ScaleNotReady()
 
         # Set default values, which should be overwritten quickly.
         self.unit = self.Units.GRAINS

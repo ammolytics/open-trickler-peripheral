@@ -110,8 +110,16 @@ def main(config, memcache, args, pidtune_logger):
 
     # Set up the scale controller.
     scale_cls = scales.SCALES[config['scale']['model']]
-    scale = scale_cls(config, memcache=memcache)
-    logging.debug('scale: %r', scale)
+    # Wait until the scale is ready.
+    while 1:
+        try:
+            scale = scale_cls(config, memcache=memcache)
+        except scales.ScaleNotReady:
+            logging.info('Scale not ready, trying again...')
+            time.sleep(10)
+        else:
+            logging.debug('scale: %r', scale)
+            break
 
     # Set initial values in memcache.
     memcache.set_multi({
