@@ -66,8 +66,8 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
         timeout = kwargs.get('timeout', float(config['scale']['timeout']))
         try:
             self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-        except serial.SerialException:
-            logging.exception('Scale is not ready!')
+        except (serial.SerialException, FileNotFoundError):
+            logging.exception('Scale is not ready! The error traceback follows for context.')
             raise ScaleNotReady()
 
         # Set default values, which should be overwritten quickly.
