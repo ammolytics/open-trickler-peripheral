@@ -12,6 +12,7 @@ tar --create --transform "$sed_expr" --file $out \
   .pylintrc \
   setup.cfg \
   setup.py \
+  requirements-to-freeze.txt \
   opentrickler_config.ini \
   opentrickler_api.yaml \
   bluetooth.sh \
