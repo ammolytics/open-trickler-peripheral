@@ -1,0 +1,59 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Run package.sh
+      run: |
+        chmod +x bin/package.sh
+        ./bin/package.sh
+
+    - name: Find new tar.xz file
+      run: |
+        NEW_FILE_NAME=$(git ls-files --others --exclude-standard | grep '\.tar\.xz$')
+        echo "NEW_FILE_NAME=$NEW_FILE_NAME" >> $GITHUB_ENV
+
+    - name: Calculate SHA256
+      run: |
+        echo "SHA256_SUM=$(sha256sum ${{ env.NEW_FILE_NAME }} | awk '{ print $1 }')" >> $GITHUB_ENV
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-files
+        path: |
+          ${{ env.NEW_FILE_NAME }}
+          ${{ env.NEW_FILE_NAME }}.sha256sum
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: release-files
+
+    - name: Create draft release
+      run: |
+        NEW_FILE_NAME=$(ls *.tar.xz)
+        VERSION=$(echo $NEW_FILE_NAME | grep -oP '(?<=my_project-)[0-9.]+(?=.tar.xz)')
+        echo "RELEASE_ID=$(gh release create v$VERSION --draft --title "Release v$VERSION" --notes "SHA256: $(cat $NEW_FILE_NAME.sha256sum)" --repo ${{ github.repository }} | awk '{ print $2 }' | cut -d/ -f6)" >> $GITHUB_ENV
+
+    - name: Upload tar.xz to release
+      run: |
+        NEW_FILE_NAME=$(ls *.tar.xz)
+        VERSION=$(echo $NEW_FILE_NAME | grep -oP '(?<=my_project-)[0-9.]+(?=.tar.xz)')
+        gh release upload v${{ env.VERSION }} $NEW_FILE_NAME --repo ${{ github.repository }}
