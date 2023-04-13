@@ -8,6 +8,11 @@ on:
 jobs:
   package:
     runs-on: ubuntu-latest
+    
+    outputs:
+      filename: ${{ steps.get_name.outputs.NEW_FILE_NAME }}
+      shasum: ${{ steps.shasum.outputs.SHA256_SUM }}
+      
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
@@ -18,13 +23,15 @@ jobs:
         ./bin/package.sh
 
     - name: Find new tar.xz file
+      id: get_name
       run: |
         NEW_FILE_NAME=$(git ls-files --others --exclude-standard | grep '\.tar\.xz$')
-        echo "NEW_FILE_NAME=$NEW_FILE_NAME" >> $GITHUB_ENV
+        echo "NEW_FILE_NAME=$NEW_FILE_NAME" >> $GITHUB_OUTPUT
 
     - name: Calculate SHA256
+      id: shasum
       run: |
-        echo "SHA256_SUM=$(sha256sum ${{ env.NEW_FILE_NAME }} | awk '{ print $1 }')" >> $GITHUB_ENV
+        echo "SHA256_SUM=$(shasum -a 256 ${{ env.NEW_FILE_NAME }} | awk '{ print $1 }')" >> $GITHUB_OUTPUT
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
@@ -49,6 +56,6 @@ jobs:
       run: |
         VERSION=$(cat VERSION)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
-        gh release create $VERSION --draft --title "Release $VERSION" --notes "SHA256: ${{ env.SHA256_SUM }}" --repo ${{ github.repository }} *.tar.xz
+        gh release create $VERSION --draft --title "Release $VERSION" --notes "SHA256: ${{ needs.package.outputs.shasum }}" --repo ${{ github.repository }} ${{ needs.package.outputs.filename }}
       env:
         GH_TOKEN: ${{ github.token }}
