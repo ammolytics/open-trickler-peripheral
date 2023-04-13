@@ -50,8 +50,5 @@ jobs:
       run: |
         VERSION=$(cat VERSION)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "RELEASE_ID=$(gh release create $VERSION --draft --title "Release $VERSION" --notes "SHA256: ${{ env.SHA256_SUM }}" --repo ${{ github.repository }} | awk '{ print $2 }' | cut -d/ -f6)" >> $GITHUB_ENV
-
-    - name: Upload tar.xz to release
-      run: |
-        gh release upload ${{ env.VERSION }} ${{ env.NEW_FILE_NAME }} --repo ${{ github.repository }}
+        gh release create $VERSION --draft --title "Release $VERSION" --notes "SHA256: ${{ env.SHA256_SUM }}" 
+        --repo ${{ github.repository }} *.tar.xz *.sha256sum
