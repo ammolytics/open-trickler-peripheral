@@ -52,3 +52,5 @@ jobs:
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         gh release create $VERSION --draft --title "Release $VERSION" --notes "SHA256: ${{ env.SHA256_SUM }}" 
         --repo ${{ github.repository }} *.tar.xz *.sha256sum
+      env:
+        GH_TOKEN: ${{ github.token }}
