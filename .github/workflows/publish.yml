@@ -48,12 +48,10 @@ jobs:
 
     - name: Create draft release
       run: |
-        NEW_FILE_NAME=$(ls *.tar.xz)
-        VERSION=$(echo $NEW_FILE_NAME | grep -oP '(?<=my_project-)[0-9.]+(?=.tar.xz)')
-        echo "RELEASE_ID=$(gh release create v$VERSION --draft --title "Release v$VERSION" --notes "SHA256: $(cat $NEW_FILE_NAME.sha256sum)" --repo ${{ github.repository }} | awk '{ print $2 }' | cut -d/ -f6)" >> $GITHUB_ENV
+        VERSION=$(cat VERSION)
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "RELEASE_ID=$(gh release create $VERSION --draft --title "Release $VERSION" --notes "SHA256: ${{ $env.SHA256_SUM }}" --repo ${{ github.repository }} | awk '{ print $2 }' | cut -d/ -f6)" >> $GITHUB_ENV
 
     - name: Upload tar.xz to release
       run: |
-        NEW_FILE_NAME=$(ls *.tar.xz)
-        VERSION=$(echo $NEW_FILE_NAME | grep -oP '(?<=my_project-)[0-9.]+(?=.tar.xz)')
-        gh release upload v${{ env.VERSION }} $NEW_FILE_NAME --repo ${{ github.repository }}
+        gh release upload ${{ env.VERSION }} ${{ env.NEW_FILE_NAME }} --repo ${{ github.repository }}
