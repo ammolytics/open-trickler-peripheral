@@ -15,14 +15,15 @@ This is a free, open-source project which does not come with any official suppor
 
 ## Installing Latest Firmware
 
-1. Download the latest firmware image: [`opentrickler-python-20210814-PROD.img.xz`](https://drive.google.com/file/d/1Fe7pqHpg_yUvkC7nm8q0EPcZy5OtW1Yc/view?usp=sharing)
-  `SHA256 (opentrickler-python-20210814-PROD.img.xz) = 649b047b9b2ab5906686382008afecd590170a1f62cf16247d34621b7d583025`
+1. Download the latest firmware image from the most recent [automated build](https://github.com/ammolytics/opentrickler-buildroot/actions/workflows/build-ot-firmware.yml)
+  Builds run every Monday morning. Firmware images can be downloaded from the Artifacts section of a given build. They expire after 90 days.
 1. Flash your microSD card using [balenaEtcher](https://www.balena.io/etcher/)
   I **highly** recommend the free [balenaEtcher program](https://www.balena.io/etcher/) for this step as it's much smarter and less error/mistake prone.
 1. Open the `BOOT` partition (shows up like a USB-drive when plugged into your computer) on the microSD card. Edit the `wpa_supplicant.conf` file with your WiFi settings.
   Optional, but recommended since it provides more debugging capabilities through your browser at [http://opentrickler.local](http://opentrickler.local).
   See here for more help: https://www.raspberrypi.org/documentation/configuration/wireless/headless.md
 1. Open the `CODE` parition on the microSD card. Edit the `opentrickler_config.ini` file to modify the Open Trickler settings. Defaults should work for most people.
+  Note: Windows users may need to assign a driver letter [in order to see the CODE partition](https://github.com/ammolytics/projects/issues/42#issuecomment-673627027).
 1. Plug the microSD card into your Pi.
 1. Turn on your scale.
 1. Turn on your Pi to boot the Open Trickler system.
@@ -52,9 +53,7 @@ All firmware images are generated using [buildroot](https://buildroot.org/) and 
 
 1. Clone this repository.
   I highly recommend making changes on your computer then copying them to the microSD card.
-1. Download the latest **development** firmware image:
-  [`opentrickler-python-20210814-DEV.img.xz`]()https://drive.google.com/file/d/1q7YvOHOx1h7B_rL1UD9nudy-sgMhuCzV/view?usp=sharing
-  `SHA256 (opentrickler-python-20210814-DEV.img.xz) = 1b8dbdbcfb76c9c6706ebfebfc981e6238a6107c24640619218087e01b0a277e`
+1. Download the latest **development** firmware image (labeled `_dev`) from the most recent [automated build](https://github.com/ammolytics/opentrickler-buildroot/actions/workflows/build-ot-firmware.yml).
 1. Follow the regular instructions above to flash the image.
 1. You can log into your running Open Trickler over SSH with the following info:  
   `ssh root@opentrickler.local` (p: `ammolytics`)
