@@ -31,14 +31,14 @@ jobs:
     - name: Calculate SHA256
       id: shasum
       run: |
-        echo "SHA256_SUM=$(shasum -a 256 ${{ env.NEW_FILE_NAME }} | awk '{ print $1 }')" >> $GITHUB_OUTPUT
+        echo "SHA256_SUM=$(shasum -a 256 ${{ steps.get_name.outputs.NEW_FILE_NAME }} | awk '{ print $1 }')" >> $GITHUB_OUTPUT
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
         name: release-files
         path: |
-          ${{ env.NEW_FILE_NAME }}
+          ${{ steps.get_name.outputs.NEW_FILE_NAME }}
 
   release:
     needs: package
@@ -56,6 +56,6 @@ jobs:
       run: |
         VERSION=$(cat VERSION)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
-        gh release create $VERSION --draft --title "Release $VERSION" --notes "SHA256: ${{ needs.package.outputs.shasum }}" --repo ${{ github.repository }} ${{ needs.package.outputs.filename }}
+        gh release create $VERSION --draft --title "Release $VERSION" --notes "SHA256: ${{ needs.package.outputs.shasum }}" --repo ${{ github.repository }} *.tar.xz
       env:
         GH_TOKEN: ${{ github.token }}
