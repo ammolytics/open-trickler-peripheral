@@ -374,14 +374,9 @@ class USSolidScale(SerialScale):
     # Note(eric): There is no documentation on how to do this for this scale.
     def change_unit(self):
         """Changes the unit of weight on the scale."""
-        logging.debug('changing weight unit on scale from: %r', self.unit)
-        # Send Mode button command.
-        self._serial.write(b'U\r\n')
-        # Sleep 1s and wait for change to take effect.
-        time.sleep(1)
-        # Run update fn to set latest values.
-        self.update()
-
+        logging.info('This scale does not support changing units through RS232')
+         self.update()
+    
     def update(self):
         """Read from the serial port and update an instance of this class with the most recent values."""
         handlers = {
