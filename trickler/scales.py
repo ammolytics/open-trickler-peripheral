@@ -344,11 +344,87 @@ class CreedmoorScale(SerialScale):
         self.resolution = self.resolution_map[self.unit]
         # Update memcache values.
         self._update_memcache()
+        
+        
+class USSolidScale(SerialScale):
+    """Class for controlling a U.S. Solid USS-DBS81-110G scale."""
+
+    def __init__(self, config, port='/dev/ttyUSB0', baudrate=9600, timeout=0.1, **kwargs):
+        """Only overriding this to provide scale specific constructor arguments."""
+        super().__init__(config=config, port=port, baudrate=baudrate, timeout=timeout, **kwargs)
+
+    @classmethod
+    @property
+    def unit_map(cls):
+        """Mapping of self.unit keys to string units of weight as used by the scale."""
+        return {
+            'gn': cls.Units.GRAINS,
+            'g': cls.Units.GRAMS,
+         }
+
+    @classmethod
+    @property
+    def resolution_map(cls):
+        """Map self.units to matching resolutions with decimal.Decimal values."""
+        return {
+            cls.Units.GRAINS: decimal.Decimal('0.001'),
+            cls.Units.GRAMS: decimal.Decimal('0.001'),
+        }
+
+    # Note(eric): There is no documentation on how to do this for this scale.
+    def change_unit(self):
+        """Changes the unit of weight on the scale."""
+        logging.info('This scale does not support changing units through RS232')
+         self.update()
+    
+    def update(self):
+        """Read from the serial port and update an instance of this class with the most recent values."""
+        handlers = {
+            '+': self._stable_unstable,
+            '-': self._stable_unstable,
+            None: noop,
+        }
+
+        # Note: The input buffer can fill up, causing latency. Clear it before reading.
+        self._serial.reset_input_buffer()
+        raw = self._serial.readline()
+        logging.debug(raw)
+        try:
+            # Remove trailing newline characters, then decode from bytestring into unicode.
+            line = raw.rstrip(b'\r\n').decode('utf-8')
+        except UnicodeDecodeError:
+            logging.debug('Could not decode bytes to unicode.')
+        else:
+            # Pull the first character (positive or negative, on this scale)
+            prefix = line[0:1]
+            # Get a handler function based on the prefix
+            handler = handlers.get(prefix, noop)
+            # Run the function to handle the input.
+            handler(line)
+
+    def _stable_unstable(self, line):
+        """Update the scale when status is stable or unstable."""
+        # Push the latest reading into the internal list.
+        self._readings.append(line)
+        # Update internal stability bit.
+        self._check_stability()
+        # Store the numeric weight from the scale reading.
+        weight = line[0:9]
+        weight = weight.replace(' ', '')
+        self.weight = decimal.Decimal(weight)
+        # Get the unit of measurement from the scale reading and store the mapped value.
+        unit = line[9:11].strip()
+        self.unit = self.unit_map[unit]
+        # Update the resolution according to the current unit of measure and supported resolutions.
+        self.resolution = self.resolution_map[self.unit]
+        # Update memcache values.
+        self._update_memcache()
 
 
 SCALES = {
     'and': ANDScale,
     'creedmoor': CreedmoorScale,
+    'ussolid' : USSolidScale,
     # Legacy naming support.
     'and-fx120': ANDScale,
 }
