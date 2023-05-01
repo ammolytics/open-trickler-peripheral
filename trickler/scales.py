@@ -367,7 +367,7 @@ class USSolidScale(SerialScale):
     def resolution_map(cls):
         """Map self.units to matching resolutions with decimal.Decimal values."""
         return {
-            cls.Units.GRAINS: decimal.Decimal('0.01'),
+            cls.Units.GRAINS: decimal.Decimal('0.001'),
             cls.Units.GRAMS: decimal.Decimal('0.001'),
         }
 
@@ -415,9 +415,10 @@ class USSolidScale(SerialScale):
         self._check_stability()
         # Store the numeric weight from the scale reading.
         weight = line[0:9]
+        weight = weight.replace(' ', '')
         self.weight = decimal.Decimal(weight)
         # Get the unit of measurement from the scale reading and store the mapped value.
-        unit = line[9:11]
+        unit = line[9:11].strip()
         self.unit = self.unit_map[unit]
         # Update the resolution according to the current unit of measure and supported resolutions.
         self.resolution = self.resolution_map[self.unit]
