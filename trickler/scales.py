@@ -414,7 +414,7 @@ class USSolidScale(SerialScale):
         # Update internal stability bit.
         self._check_stability()
         # Store the numeric weight from the scale reading.
-        weight = line[0:8]
+        weight = line[0:9]
         self.weight = decimal.Decimal(weight)
         # Get the unit of measurement from the scale reading and store the mapped value.
         unit = line[9:11]
