@@ -151,11 +151,18 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
 
 
 class ANDScale(SerialScale):
-    """Class for controlling an A&D FX120 scale."""
+    """Class for controlling an A&D brand scales.
+    
+    Model-specific settings for the config file:
 
-    def __init__(self, config, port='/dev/ttyUSB0', baudrate=19200, timeout=0.1, **kwargs):
-        """Only overriding this to provide scale specific constructor arguments."""
-        super().__init__(config=config, port=port, baudrate=baudrate, timeout=timeout, **kwargs)
+    FX-120i
+    baudrate=19200
+    timeout=0.1
+
+    GF-400
+    baudrate=9600
+    timeout=0.1
+    """
 
     @classmethod
     @property
@@ -268,11 +275,14 @@ class ANDScale(SerialScale):
 
 
 class CreedmoorScale(SerialScale):
-    """Class for controlling a Creedmoor Sports TRX-925 scale."""
+    """Class for controlling a Creedmoor Sports scale.
+    
+    Model-specific settings for the config file:
 
-    def __init__(self, config, port='/dev/ttyUSB0', baudrate=9600, timeout=0.1, **kwargs):
-        """Only overriding this to provide scale specific constructor arguments."""
-        super().__init__(config=config, port=port, baudrate=baudrate, timeout=timeout, **kwargs)
+    TRX-925
+    baudrate=9600
+    timeout=0.1
+    """
 
     @classmethod
     @property
@@ -347,11 +357,14 @@ class CreedmoorScale(SerialScale):
         
         
 class USSolidScale(SerialScale):
-    """Class for controlling a U.S. Solid USS-DBS81-110G scale."""
+    """Class for controlling a U.S. Solid brand scales.
+    
+    Model-specific settings for the config file:
 
-    def __init__(self, config, port='/dev/ttyUSB0', baudrate=9600, timeout=0.1, **kwargs):
-        """Only overriding this to provide scale specific constructor arguments."""
-        super().__init__(config=config, port=port, baudrate=baudrate, timeout=timeout, **kwargs)
+    USS-DBS81-110G
+    baudrate=9600
+    timeout=0.1
+    """
 
     @classmethod
     @property
