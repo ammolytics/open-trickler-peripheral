@@ -57,7 +57,7 @@ class BasicCharacteristic(pybleno.Characteristic): # pylint: disable=too-many-in
     @property
     def mc_value(self):
         """Make the internal value accessible as a readable property."""
-        return self.__value
+        return self.__value # pylint: disable=unused-private-member
 
     @mc_value.setter
     def mc_value(self, value):
@@ -77,7 +77,8 @@ class BasicCharacteristic(pybleno.Characteristic): # pylint: disable=too-many-in
             except (KeyError, ValueError):
                 logging.exception('Cache miss.')
             else:
-                return value
+                break
+        return value
 
     def mc_update(self):
         """Updates the internal value to match what's in memcache."""
@@ -141,7 +142,7 @@ class ScaleStatus(BasicCharacteristic):
         self._updateValueCallback = None
         self._send_fn = helpers.enum_to_bytes
         self._recv_fn = helpers.bytes_to_enum
-        self.__value = self.mc_get()
+        self.__value = self.mc_get() # pylint: disable=unused-private-member
 
 
 class TargetWeight(BasicCharacteristic):
@@ -163,7 +164,7 @@ class TargetWeight(BasicCharacteristic):
         self._updateValueCallback = None
         self._send_fn = helpers.decimal_to_bytes
         self._recv_fn = helpers.bytes_to_decimal
-        self.__value = self.mc_get()
+        self.__value = self.mc_get() # pylint: disable=unused-private-member
 
     def onWriteRequest(self, data, offset, withoutResponse, callback):
         """Handle Bluetooth client request to change this characteristic value."""
@@ -203,12 +204,12 @@ class ScaleUnit(BasicCharacteristic): # pylint: disable=too-many-instance-attrib
         logging.info('Waiting for scale_units to populate in memcache...')
         while scale_units is None:
             scale_units = self._memcache.get(constants.SCALE_UNITS.value)
-            logging.info(f'scale_units: {scale_units!r}')
+            logging.info('scale_units: %r', scale_units)
 
         # Pull unit mappings from memcache into a local Enum. Scale won't change, so neither will this.
         self._units_enum = enum.Enum('scale_units', scale_units)
         self._recv_fn = functools.partial(helpers.bytes_to_enum, self._units_enum)
-        self.__value = self.mc_get()
+        self.__value = self.mc_get() # pylint: disable=unused-private-member,unused-private-member
 
     def onWriteRequest(self, data, offset, withoutResponse, callback):
         if offset:
@@ -245,7 +246,7 @@ class ScaleWeight(BasicCharacteristic):
         self._updateValueCallback = None
         self._send_fn = helpers.decimal_to_bytes
         self._recv_fn = helpers.bytes_to_decimal
-        self.__value = self.mc_get()
+        self.__value = self.mc_get() # pylint: disable=unused-private-member
 
 
 class TricklerService(pybleno.BlenoPrimaryService):

@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Setup script for package.
+"""
+
 from setuptools import setup
 
 SHORT_DESCRIPTION = """

@@ -20,10 +20,12 @@ import helpers
 
 
 class ScaleException(Exception):
+    """Base exception for scales."""
     pass
 
 
 class ScaleNotReady(ScaleException):
+    """Scale not ready."""
     pass
 
 
@@ -66,9 +68,9 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
         timeout = kwargs.get('timeout', float(config['scale']['timeout']))
         try:
             self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-        except (serial.SerialException, FileNotFoundError):
+        except (serial.SerialException, FileNotFoundError) as exc:
             logging.exception('Scale is not ready! The error traceback follows for context.')
-            raise ScaleNotReady()
+            raise ScaleNotReady() from exc
 
         # Set default values, which should be overwritten quickly.
         self.unit = self.Units.GRAINS
@@ -101,8 +103,10 @@ class SerialScale: # pylint: disable=too-many-instance-attributes;
             self._memcache.set_multi({
                 self._constants.SCALE_UNITS.value: {x.name: x.value for x in self.Units},
                 self._constants.SCALE_UNIT_MAP.value: {k: self.unit_map[k].value for k in self.unit_map},
-                self._constants.SCALE_REVERSE_UNIT_MAP.value: {k.value: self.reverse_unit_map[k] for k in self.reverse_unit_map},
-                self._constants.SCALE_RESOLUTION_MAP.value: {k.value: self.resolution_map[k] for k in self.resolution_map},
+                self._constants.SCALE_REVERSE_UNIT_MAP.value: {k.value: self.reverse_unit_map[k]
+                    for k in self.reverse_unit_map},
+                self._constants.SCALE_RESOLUTION_MAP.value: {k.value: self.resolution_map[k]
+                    for k in self.resolution_map},
                 self._constants.SCALE_STATUS_MAP.value: {x.name: x.value for x in self.StatusMap},
             })
 
