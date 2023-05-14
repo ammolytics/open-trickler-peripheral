@@ -356,8 +356,8 @@ class CreedmoorScale(SerialScale):
         self.resolution = self.resolution_map[self.unit]
         # Update memcache values.
         self._update_memcache()
-        
-        
+
+
 class USSolidScale(SerialScale):
     """Class for controlling a U.S. Solid brand scales.
     
@@ -391,7 +391,7 @@ class USSolidScale(SerialScale):
         """Changes the unit of weight on the scale."""
         logging.info('This scale does not support changing units through RS232')
         self.update()
-    
+
     def update(self):
         """Read from the serial port and update an instance of this class with the most recent values."""
         handlers = {
