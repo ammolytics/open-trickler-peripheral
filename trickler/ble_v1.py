@@ -106,7 +106,7 @@ class AutoMode(BasicCharacteristic):
         self._updateValueCallback = None
         self._send_fn = helpers.bool_to_bytes
         self._recv_fn = helpers.bytes_to_bool
-        self.__value = self.mc_get()
+        self.__value = self.mc_get() # pylint: disable=unused-private-member
 
     def onWriteRequest(self, data, offset, withoutResponse, callback):
         """Handle Bluetooth client change request for this characteristic."""
