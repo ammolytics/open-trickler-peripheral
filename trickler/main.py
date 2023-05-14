@@ -28,11 +28,6 @@ import scales
 # 6. Bluetooth?
 # 7: Powder pan/cup?
 
-# TODO
-# - handle case where scale is booted with pan on -- shows error instead of negative value
-# - detect scale that's turned off (blank values)
-# - validate inputs (target weight)
-
 
 def trickler_loop(memcache, constants, pid, trickler_motor, scale, target_weight, target_unit, pidtune_logger): # pylint: disable=too-many-arguments;
     """Main trickler control loop run when all devices are ready, target weight is set, and auto-mode is on."""
