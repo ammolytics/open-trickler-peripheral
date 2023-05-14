@@ -16,7 +16,7 @@ import pymemcache.serde # pylint: disable=import-error;
 
 
 def get_mc_client(server='127.0.0.1:11211'):
-  """Returns a memcache client instance."""
+    """Returns a memcache client instance."""
     return pymemcache.client.base.Client(
         server,
         serde=pymemcache.serde.PickleSerde(),
@@ -25,7 +25,7 @@ def get_mc_client(server='127.0.0.1:11211'):
 
 
 def setup_logging(level=logging.DEBUG):
-  """Returns a configured logger instance."""
+    """Returns a configured logger instance."""
     logging.basicConfig(
         level=level,
         format='%(asctime)s.%(msecs)06dZ %(levelname)-4s %(message)s',
