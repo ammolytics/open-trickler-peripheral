@@ -21,12 +21,10 @@ import helpers
 
 class ScaleException(Exception):
     """Base exception for scales."""
-    pass
 
 
 class ScaleNotReady(ScaleException):
     """Scale not ready."""
-    pass
 
 
 def noop(*args, **kwargs):
