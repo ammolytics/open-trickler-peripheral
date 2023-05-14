@@ -21,4 +21,4 @@ jobs:
         pip install -r requirements-to-freeze.txt
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py' 'trickler/*.py')
+        pylint --rcfile=.pylintrc $(git ls-files '*.py' 'trickler/*.py')
