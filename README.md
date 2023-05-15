@@ -8,7 +8,7 @@ This portion of the Open Trickler is used to control the scale and trickler moto
 
 ## Support
 
-Need help? [Check the FAQ](https://github.com/ammolytics/projects/tree/develop/trickler#frequently-asked-questions) or [join our Discord Server](https://discord.gg/WqTbyK2) to chat with other folks who are building the Open Trickler and helping each other out.
+Need help? [Check the FAQ](https://github.com/ammolytics/open-trickler-peripheral/wiki/Frequently-Asked-Questions) or [join our Discord Server](https://discord.gg/WqTbyK2) to chat with other folks who are building the Open Trickler and helping each other out.
 
 This is a free, open-source project which does not come with any official support or warranty.
 
@@ -30,7 +30,7 @@ This is a free, open-source project which does not come with any official suppor
 1. The onboard LED should "pulse" once it's booted up and ready!
 1. Connect with your mobile app.
 
-Please share any feedback/results on [Discord](https://discord.gg/WqTbyK2) or in a [GitHub issue](https://github.com/ammolytics/projects/issues).
+Please share any feedback/results on [Discord](https://discord.gg/WqTbyK2) or in a [GitHub issue](https://github.com/ammolytics/open-trickler-peripheral/issues).
 
 
 ## Debugging
