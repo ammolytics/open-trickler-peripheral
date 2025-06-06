@@ -12,6 +12,7 @@ import collections
 import decimal
 import enum
 import logging
+import re
 import time
 
 import serial # pylint: disable=import-error;
@@ -30,6 +31,26 @@ class ScaleNotReady(ScaleException):
 def noop(*args, **kwargs):
     """No-op function for scales to use on throwaway status updates."""
     return
+
+
+def split_numeric_alpha_re(s):
+    """Splits a scale string by its numeric and unit parts."""
+    # Pattern explanation:
+    # ^                 - Start of the string
+    # [-+]?             - Optional leading '+' or '-'
+    # \d* - Zero or more digits (for cases like ".5" or just "+")
+    # (?:\.\d*)?        - Optional non-capturing group for a decimal point followed by zero or more digits
+    #                   - This handles cases like "123.45" or just "123."
+    # (?P<numeric>...) - Named capturing group for the numeric part
+    # (?P<alpha>.*)   - Named capturing group for the rest (alphabetical and anything after)
+    match = re.match(r"^(?P<numeric>[-+]?\d*(?:\.\d*)?)(?P<alpha>.*)$", s)
+    if match:
+        numeric_part = match.group('numeric')
+        alpha_part = match.group('alpha')
+        return numeric_part, alpha_part
+    else:
+        # If no match (e.g., string starts with alpha), handle accordingly
+        return "", s
 
 
 class SerialScale: # pylint: disable=too-many-instance-attributes;
@@ -436,10 +457,119 @@ class USSolidScale(SerialScale):
         self._update_memcache()
 
 
+class USSolid2Scale(SerialScale):
+    """Class for controlling a second model of U.S. Solid brand scale.
+
+    This scale's output includes an 'M' suffix when the reading is unstable.
+    Example stable line:   '+   12.345gn '
+    Example unstable line: '+   12.345gnM'
+
+    Model-specific settings for the config file (defaults if not specified):
+    model=ussolid2
+    baudrate=9600
+    timeout=0.1
+    """
+
+    @classmethod
+    @property
+    def unit_map(cls):
+        """Mapping of self.unit keys to string units of weight as used by the scale."""
+        return {
+            'gn': cls.Units.GRAINS,
+            'g': cls.Units.GRAMS,
+        }
+
+    @classmethod
+    @property
+    def resolution_map(cls):
+        """Map self.units to matching resolutions with decimal.Decimal values."""
+        return {
+            cls.Units.GRAINS: decimal.Decimal('0.001'),
+            cls.Units.GRAMS: decimal.Decimal('0.001'),
+        }
+
+    def change_unit(self):
+        """Changes the unit of weight on the scale."""
+        logging.info('This scale (USSolid2) does not support changing units through RS232')
+        self.update()
+
+    def update(self):
+        """Read from the serial port and update an instance of this class with the most recent values."""
+        handlers = {
+            '+': self._stable_unstable,
+            '-': self._stable_unstable,
+            None: noop,
+        }
+
+        self._serial.reset_input_buffer()
+        raw = self._serial.readline()
+        logging.debug(raw)
+        try:
+            line = raw.rstrip(b'\r\n').decode('utf-8')
+        except UnicodeDecodeError:
+            logging.debug('USSolid2Scale: Could not decode bytes to unicode.')
+        else:
+            prefix = line[0:1]
+            handler = handlers.get(prefix, self._error_handler)
+            handler(line)
+
+    def _stable_unstable(self, line):
+        """Parse the data line from the scale which includes stability, weight, and unit."""
+        clean_line = line.strip() # e.g., "+   0.000gn" or "+  39.198gnM"
+
+        if clean_line.endswith('M'):
+            self.status = self.StatusMap.UNSTABLE
+            core_data_str = clean_line[:-1] # Removes 'M'. E.g., "+  39.198gn"
+        else:
+            self.status = self.StatusMap.STABLE
+            core_data_str = clean_line # E.g., "+   0.000gn"
+
+        sign = core_data_str[0]
+        if sign not in ('+', '-'):
+            logging.error(f'Invalid or missing sign in processed data {core_data_str}')
+            self.status = self.StatusMap.ERROR
+            self._update_memcache()
+            return
+
+        weight_val_str, unit_str = split_numeric_alpha_re(core_data_str)
+        if not weight_val_str:
+            logging.error(f'Could not process value from scale: {core_data_str}')
+            self.status = self.StatusMap.ERROR
+            self._update_memcache()
+            return
+
+        try:
+            self.weight = decimal.Decimal(weight_val_str)
+        except decimal.InvalidOperation:
+            logging.error(f'Could not convert weight {weight_val_str} to Decimal.')
+            self.status = self.StatusMap.ERROR
+            self._update_memcache()
+            return
+
+        if unit_str in self.unit_map:
+            self.unit = self.unit_map[unit_str]
+            self.resolution = self.resolution_map[self.unit]
+        else:
+            logging.error(f'Unknown unit {unit_str} from line: {line}.')
+            self.status = self.StatusMap.ERROR
+            # self.unit and self.resolution will retain their previous values.
+            self._update_memcache()
+            return
+
+        self._update_memcache()
+
+    def _error_handler(self, line):
+        """Handles lines that don't match expected format (e.g., wrong prefix)."""
+        logging.warning(f"USSolid2Scale: Unexpected line format or prefix: {line!r}")
+        self.status = self.StatusMap.ERROR
+        self._update_memcache()
+
+
 SCALES = {
     'and': ANDScale,
     'creedmoor': CreedmoorScale,
     'ussolid' : USSolidScale,
+    'ussolid2' : USSolid2Scale,
     # Legacy naming support.
     'and-fx120': ANDScale,
 }
