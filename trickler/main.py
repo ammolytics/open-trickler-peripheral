@@ -19,6 +19,19 @@ import motors
 import scales
 
 
+class Units(enum.Enum):
+    """Unit identifiers for use with target weights to be compatible with any scale."""
+    GRAINS = 0
+    GRAMS = 1
+
+
+# Mapping of unit strings used by mobile app over BLE to standard unit enum used by scales.
+UNIT_MAP = {
+    'GN': Units.GRAINS,
+    'g': Units.GRAMS,
+}
+
+
 # Components:
 # 0. Server (Pi)
 # 1. Scale (serial)
@@ -129,27 +142,29 @@ def main(config, memcache, args, pidtune_logger):
         auto_mode = memcache.get(constants.AUTO_MODE.value)
         target_weight = memcache.get(constants.TARGET_WEIGHT.value)
         target_unit = memcache.get(constants.TARGET_UNIT.value)
+        target_std_unit = UNIT_MAP[target_unit]
         # Use percentages for PID control to avoid complexity w/ different units of weight.
         pid.SetPoint = 100.0
         scale.update()
 
         # Set scale to match target unit.
-        if target_unit != scale.unit:
+        if target_std_unit.value != scale.unit.value:
             logging.info('scale.unit: %r, target_unit: %r', scale.unit, target_unit)
             scale.change_unit()
 
         logging.info(
-            'target: %s %s scale: %s %s auto_mode: %s',
+            'target: %s %s scale: %s %s status: %s auto_mode: %s',
             target_weight,
             target_unit,
             scale.weight,
             scale.unit,
+            scale.status,
             auto_mode)
 
         # Powder pan in place, scale stable, ready to trickle.
         if (scale.weight >= 0 and
                 scale.weight < target_weight and
-                scale.unit == target_unit and
+                scale.unit.value == target_std_unit.value and
                 scale.is_stable and
                 auto_mode):
             # Wait a second to start trickling.
