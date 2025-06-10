@@ -19,19 +19,6 @@ import motors
 import scales
 
 
-class Units(enum.Enum):
-    """Unit identifiers for use with target weights to be compatible with any scale."""
-    GRAINS = 0
-    GRAMS = 1
-
-
-# Mapping of unit strings used by mobile app over BLE to standard unit enum used by scales.
-UNIT_MAP = {
-    'GN': Units.GRAINS,
-    'g': Units.GRAMS,
-}
-
-
 # Components:
 # 0. Server (Pi)
 # 1. Scale (serial)
@@ -57,9 +44,8 @@ def trickler_loop(memcache, constants, pid, trickler_motor, scale, target_weight
         # Read scale values (weight/unit/stable)
         scale.update()
 
-        target_std_unit = UNIT_MAP[target_unit]
         # Stop running if scale's unit no longer matches target unit.
-        if scale.unit.value != target_std_unit.value:
+        if scale.unit != target_unit:
             logging.debug('Target unit does not match scale unit.')
             break
 
@@ -134,7 +120,7 @@ def main(config, memcache, args, pidtune_logger):
     memcache.set_multi({
         constants.AUTO_MODE.value: args.auto_mode or False,
         constants.TARGET_WEIGHT.value: args.target_weight or decimal.Decimal('0.0'),
-        constants.TARGET_UNIT.value: scale.unit_map.get(args.target_unit, 'GN'),
+        constants.TARGET_UNIT.value: scale.unit_map.get(args.target_unit) or scale.Units.GRAINS,
     })
 
     # Outer-most control loop for the whole trickler system.
@@ -143,13 +129,12 @@ def main(config, memcache, args, pidtune_logger):
         auto_mode = memcache.get(constants.AUTO_MODE.value)
         target_weight = memcache.get(constants.TARGET_WEIGHT.value)
         target_unit = memcache.get(constants.TARGET_UNIT.value)
-        target_std_unit = UNIT_MAP[target_unit]
         # Use percentages for PID control to avoid complexity w/ different units of weight.
         pid.SetPoint = 100.0
         scale.update()
 
         # Set scale to match target unit.
-        if target_std_unit.value != scale.unit.value:
+        if target_unit != scale.unit:
             logging.info('scale.unit: %r, target_unit: %r', scale.unit, target_unit)
             scale.change_unit()
 
@@ -165,7 +150,7 @@ def main(config, memcache, args, pidtune_logger):
         # Powder pan in place, scale stable, ready to trickle.
         if (scale.weight >= 0 and
                 scale.weight < target_weight and
-                scale.unit.value == target_std_unit.value and
+                scale.unit == target_unit and
                 scale.is_stable and
                 auto_mode):
             # Wait a second to start trickling.
