@@ -57,8 +57,9 @@ def trickler_loop(memcache, constants, pid, trickler_motor, scale, target_weight
         # Read scale values (weight/unit/stable)
         scale.update()
 
+        target_std_unit = UNIT_MAP[target_unit]
         # Stop running if scale's unit no longer matches target unit.
-        if scale.unit != target_unit:
+        if scale.unit.value != target_std_unit.value:
             logging.debug('Target unit does not match scale unit.')
             break
 
