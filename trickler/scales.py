@@ -498,6 +498,8 @@ class USSolid2Scale(SerialScale):
         handlers = {
             '+': self._stable_unstable,
             '-': self._stable_unstable,
+            # Scale sometimes sends blank readings which should be ignored.
+            '': noop,
             None: noop,
         }
 
@@ -505,7 +507,8 @@ class USSolid2Scale(SerialScale):
         raw = self._serial.readline()
         logging.debug(raw)
         try:
-            line = raw.rstrip(b'\r\n').decode('utf-8')
+            # Removes \x02 at start and newlines at end.
+            line = raw.strip(b'\x02').rstrip(b'\r\n').rstrip().decode('utf-8')
         except UnicodeDecodeError:
             logging.debug('USSolid2Scale: Could not decode bytes to unicode.')
         else:
