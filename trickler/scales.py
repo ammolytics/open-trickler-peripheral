@@ -43,7 +43,7 @@ def split_numeric_alpha_re(s):
     #                   - This handles cases like "123.45" or just "123."
     # (?P<numeric>...) - Named capturing group for the numeric part
     # (?P<alpha>.*)   - Named capturing group for the rest (alphabetical and anything after)
-    match = re.match(r"^(?P<numeric>[-+]?\d*(?:\.\d*)?)(?P<alpha>.*)$", s)
+    match = re.match(r"^(?P<numeric>[-+]?\d*(?:\.\d*)?)(?P<alpha>.*)$", s.replace(' ', ''))
     if match:
         numeric_part = match.group('numeric')
         alpha_part = match.group('alpha')
