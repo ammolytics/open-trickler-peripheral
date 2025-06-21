@@ -120,7 +120,7 @@ def main(config, memcache, args, pidtune_logger):
     memcache.set_multi({
         constants.AUTO_MODE.value: args.auto_mode or False,
         constants.TARGET_WEIGHT.value: args.target_weight or decimal.Decimal('0.0'),
-        constants.TARGET_UNIT.value: scale.unit_map.get(args.target_unit, 'GN'),
+        constants.TARGET_UNIT.value: scale.unit_map.get(args.target_unit) or scale.Units.GRAINS,
     })
 
     # Outer-most control loop for the whole trickler system.
@@ -139,11 +139,12 @@ def main(config, memcache, args, pidtune_logger):
             scale.change_unit()
 
         logging.info(
-            'target: %s %s scale: %s %s auto_mode: %s',
+            'target: %s %s scale: %s %s status: %s auto_mode: %s',
             target_weight,
             target_unit,
             scale.weight,
             scale.unit,
+            scale.status,
             auto_mode)
 
         # Powder pan in place, scale stable, ready to trickle.
