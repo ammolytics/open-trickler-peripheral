@@ -12,7 +12,7 @@ LONG_DESCRIPTION = """
 DIY powder trickler control software.""".strip()
 
 DEPENDENCIES = [
-    'bluezero<=0.8.0',
+    'bluezero<=0.9.0',
     'pybleno',
     'pyserial',
     'gpiozero',
